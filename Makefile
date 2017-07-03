@@ -9,7 +9,7 @@ INCLUDES = -I$(PATH_INCLUDES)
 LIBRARIES = -pthread
 SOURCES = $(shell find $(PATH_SOURCES) -iname "*.c")
 
-release: CCFLAGS += -O3 -g
+release: CCFLAGS += -O3
 release: all
 
 debug: CCFLAGS += -g -DCONFIGURATION_IS_DEBUG_ENABLED=1

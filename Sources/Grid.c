@@ -9,19 +9,6 @@
 #include <string.h>
 
 //-------------------------------------------------------------------------------------------------
-// Private types
-//-------------------------------------------------------------------------------------------------
-/** Contain all needed information to run the backtrack algorithm. */
-typedef struct
-{
-	int Cells[CONFIGURATION_GRID_MAXIMUM_SIZE][CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Cells content.
-	unsigned int Allowed_Numbers_Bitmask_Rows[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each row (a bit is set when the number is allowed).
-	unsigned int Allowed_Numbers_Bitmask_Columns[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each column (a bit is set when the number is allowed).
-	unsigned int Allowed_Numbers_Bitmask_Squares[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each square (a bit is set when the number is allowed).
-	TCellsStack Empty_Cells_Stack; //!< Contain all grid empty cells to avoid loosing time searching for them.
-} TGrid;
-
-//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** Current grid side size in cells. */
@@ -38,9 +25,6 @@ static unsigned int Grid_Square_Height;
 static unsigned int Grid_Squares_Horizontal_Count;
 /** How many squares in a column. */
 static unsigned int Grid_Squares_Vertical_Count;
-
-/** All thread grids (one per thread). */
-static TGrid Grids[CONFIGURATION_THREADS_MAXIMUM_COUNT + 1];
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -91,16 +75,12 @@ static int GridConvertCharacterToValue(char Character)
 }
 
 /** Create the initial bitmasks for all rows, columns and squares.
- * @param Grid_ID The grid identifier.
+ * @param Pointer_Grid The concerned grid.
  */
-static inline void GridGenerateInitialBitmasks(unsigned int Grid_ID)
+static inline void GridGenerateInitialBitmasks(TGrid *Pointer_Grid)
 {
 	unsigned int Row, Column, Number, Column_Start, Row_End, Column_End, Square_Row, Square_Column, i;
 	int Is_Number_Found[CONFIGURATION_GRID_MAXIMUM_SIZE];
-	TGrid *Pointer_Grid;
-	
-	// Cache grid access
-	Pointer_Grid = &Grids[Grid_ID];
 	
 	// Parse all rows
 	for (Row = 0; Row < Grid_Size; Row++)
@@ -184,15 +164,15 @@ static inline void GridGenerateInitialBitmasks(unsigned int Grid_ID)
 }
 
 /** Fill the empty stack cells of the specified grid..
- * @param Grid_ID The grid identifier.
+ * @param Pointer_Grid The concerned grid.
  */
-static void GridFillStackWithEmptyCells(unsigned int Grid_ID)
+static void GridFillStackWithEmptyCells(TGrid *Pointer_Grid)
 {
 	int Row, Column;
 	TCellsStack *Pointer_Stack;
 	
 	// Cache stack access
-	Pointer_Stack = &Grids[Grid_ID].Empty_Cells_Stack;
+	Pointer_Stack = &Pointer_Grid->Empty_Cells_Stack;
 	
 	CellsStackInitialize(Pointer_Stack);
 	
@@ -201,7 +181,7 @@ static void GridFillStackWithEmptyCells(unsigned int Grid_ID)
 	{
 		for (Column = Grid_Size - 1; Column >= 0; Column--)
 		{
-			if (Grids[Grid_ID].Cells[Row][Column] == GRID_EMPTY_CELL_VALUE) CellsStackPush(Pointer_Stack, Row, Column);
+			if (Pointer_Grid->Cells[Row][Column] == GRID_EMPTY_CELL_VALUE) CellsStackPush(Pointer_Stack, Row, Column);
 		}
 	}
 }
@@ -209,15 +189,11 @@ static void GridFillStackWithEmptyCells(unsigned int Grid_ID)
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
-int GridLoadFromFile(unsigned int Grid_ID, char *String_File_Name)
+int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 {
 	FILE *Pointer_File;
 	unsigned int Row, Column, Temp;
 	char String_Line[CONFIGURATION_GRID_MAXIMUM_SIZE + 2];
-	TGrid *Pointer_Grid;
-	
-	// Cache grid access
-	Pointer_Grid = &Grids[Grid_ID];
 	
 	// Try to open the file
 	Pointer_File = fopen(String_File_Name, "rb");
@@ -315,21 +291,17 @@ int GridLoadFromFile(unsigned int Grid_ID, char *String_File_Name)
 	fclose(Pointer_File);
 
 	// Create first bitmasks
-	GridGenerateInitialBitmasks(Grid_ID);
+	GridGenerateInitialBitmasks(Pointer_Grid);
 	
 	// Put the empty cells coordinates into the dedicated stack
-	GridFillStackWithEmptyCells(Grid_ID);
+	GridFillStackWithEmptyCells(Pointer_Grid);
 	return 0;
 }
 
-void GridShow(unsigned int Grid_ID)
+void GridShow(TGrid *Pointer_Grid)
 {
 	unsigned int Row, Column;
 	int Value;
-	TGrid *Pointer_Grid;
-	
-	// Cache grid access
-	Pointer_Grid = &Grids[Grid_ID];
 	
 	for (Row = 0; Row < Grid_Size; Row++)
 	{

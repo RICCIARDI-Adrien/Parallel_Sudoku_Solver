@@ -5,6 +5,7 @@
 #ifndef H_GRID_H
 #define H_GRID_H
 
+#include <Cells_Stack.h>
 #include <Configuration.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -14,28 +15,40 @@
 #define GRID_EMPTY_CELL_VALUE 1000
 
 //-------------------------------------------------------------------------------------------------
+// Types
+//-------------------------------------------------------------------------------------------------
+/** Contain all needed information to run the backtrack algorithm. */
+typedef struct
+{
+	int Cells[CONFIGURATION_GRID_MAXIMUM_SIZE][CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Cells content.
+	unsigned int Allowed_Numbers_Bitmask_Rows[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each row (a bit is set when the number is allowed).
+	unsigned int Allowed_Numbers_Bitmask_Columns[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each column (a bit is set when the number is allowed).
+	unsigned int Allowed_Numbers_Bitmask_Squares[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each square (a bit is set when the number is allowed).
+	TCellsStack Empty_Cells_Stack; //!< Contain all grid empty cells to avoid loosing time searching for them.
+} TGrid;
+
+//-------------------------------------------------------------------------------------------------
 // Functions
 //-------------------------------------------------------------------------------------------------
 /** Load the grid content from a file.
- * @param Grid_ID In which grid to put the read content.
+ * @param Pointer_Grid In which grid to put the read content.
  * @param String_File_Name Name of the file describing the grid.
  * @return 0 if the grid was correctly loaded,
  * @return -1 if the file was not found,
  * @return -2 if the grid size is not 6, 9, 12 or 16,
  * @return -3 if cells data are bad.
  */
-int GridLoadFromFile(unsigned int Grid_ID, char *String_File_Name);
+int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name);
 
 /** Copy a grid cell values and internal bitmasks to another grid.
- * @param Source_Grid_ID The grid to copy from.
- * @param Destination_Grid_ID The grid to copy to.
- * @note Nothing is done if one or both provided IDs is bad.
+ * @param Pointer_Grid_Source The grid to copy from.
+ * @param Pointer_Grid_Destination The grid to copy to.
  */
-void GridCopy(int Source_Grid_ID, int Destination_Grid_ID); // TODO
+void GridCopy(TGrid *Pointer_Grid_Source, TGrid *Pointer_Grid_Destination); // TODO
 
 /** Print the grid to the screen.
- * @param Grid_ID The grid to display.
+ * @param Pointer_Grid The grid to display.
  */
-void GridShow(unsigned int Grid_ID);
+void GridShow(TGrid *Pointer_Grid);
 
 #endif
