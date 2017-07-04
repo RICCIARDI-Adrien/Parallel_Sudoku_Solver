@@ -4,11 +4,25 @@
  */
 #include <Configuration.h>
 #include <Grid.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <Worker.h>
+
+//-------------------------------------------------------------------------------------------------
+// Private variables
+//-------------------------------------------------------------------------------------------------
+/** Use a semaphore to count how many available workers remain. */
+static sem_t Worker_Available_Workers_Count;
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
+int WorkerInitialize(int Maximum_Workers_Count)
+{
+	if (sem_init(&Worker_Available_Workers_Count, 0, Maximum_Workers_Count) != 0) return -1;
+	return 0;
+}
+
 /** Solve a grid using the backtrack algorithm.
  * @return 0 if the grid could not be solved,
  * @return 1 if the grid was successfully solved.
@@ -77,26 +91,50 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 	return 0;
 }
 
-#if 0
 /** The function executed by the thread.
- * @param Pointer_Grid The grid to solve.
- * @return 0 (casted to void *) if the grid could not be solved,
- * @return 1 (casted to void *) if the grid was solved.
+ * @param Pointer_Grid_To_Solve The grid to solve.
+ * @return Unused value.
  */
-static void *WorkerThreadFunction(void *Pointer_Grid)
+static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 {
-	long Is_Grid_Solved; // Use an integer type that reflects the machine native word size, so it is always of the same size than memory address, thus than pointer
+	int Is_Grid_Solved;
+	TGrid *Pointer_Grid = Pointer_Grid_To_Solve;
 	
+	// Start solving
 	Is_Grid_Solved = WorkerSolveGrid(Pointer_Grid);
-	return (void *) Is_Grid_Solved;
+	if (Is_Grid_Solved) Pointer_Grid->State = GRID_STATE_SOLVING_SUCCESSED;
+	else Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
+	
+	// Tell that the worker is available for a new job
+	sem_post(&Worker_Available_Workers_Count); // Increment the atomic counter
+	
+	return NULL;
 }
-#endif
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
 int WorkerStart(TGrid *Pointer_Grid)
 {
-	// TEST
-	return WorkerSolveGrid(Pointer_Grid);
+	pthread_t Thread_ID;
+	
+	// Create new thread and feed it with the provided grid
+	if (pthread_create(&Thread_ID, NULL, WorkerThreadFunction, Pointer_Grid) != 0) return -1;
+	Pointer_Grid->Thread_ID = Thread_ID;
+	return 0;
+}
+
+void WorkerTerminate(TGrid *Pointer_Grid)
+{
+	pthread_join(Pointer_Grid->Thread_ID, NULL);
+}
+
+void WorkerWaitForAvailableWorker(void)
+{
+	sem_wait(&Worker_Available_Workers_Count); // Decrement the atomic counter
+}
+
+// TODO
+void WorkerStopAll(void)
+{
 }

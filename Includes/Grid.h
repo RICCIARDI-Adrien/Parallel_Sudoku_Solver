@@ -7,6 +7,7 @@
 
 #include <Cells_Stack.h>
 #include <Configuration.h>
+#include <pthread.h>
 
 //-------------------------------------------------------------------------------------------------
 // Constants
@@ -17,6 +18,14 @@
 //-------------------------------------------------------------------------------------------------
 // Types
 //-------------------------------------------------------------------------------------------------
+/** All states a grid can be in. */
+typedef enum
+{
+	GRID_STATE_BUSY, //!< The grid is being solved, do not access its data until the solver has finished.
+	GRID_STATE_SOLVING_SUCCESSED, //!< The grid has been successfully solved.
+	GRID_STATE_SOLVING_FAILED //!< The grid can't be solved. It is now available to start a new solving.
+} TGridState;
+
 /** Contain all needed information to run the backtrack algorithm. */
 typedef struct
 {
@@ -26,6 +35,8 @@ typedef struct
 	unsigned int Allowed_Numbers_Bitmask_Columns[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each column (a bit is set when the number is allowed).
 	unsigned int Allowed_Numbers_Bitmask_Squares[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each square (a bit is set when the number is allowed).
 	TCellsStack Empty_Cells_Stack; //!< Contain all grid empty cells to avoid loosing time searching for them.
+	TGridState State; //!< In which state the grid is right now.
+	pthread_t Thread_ID; //!< Hold the thread ID of the worker that is solving the grid (so the thread can be stopped in a clean way).
 } TGrid;
 
 //-------------------------------------------------------------------------------------------------
@@ -45,7 +56,7 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name);
  * @param Pointer_Grid_Source The grid to copy from.
  * @param Pointer_Grid_Destination The grid to copy to.
  */
-void GridCopy(TGrid *Pointer_Grid_Source, TGrid *Pointer_Grid_Destination); // TODO
+void GridCopy(TGrid *Pointer_Grid_Source, TGrid *Pointer_Grid_Destination);
 
 /** Print the grid to the screen.
  * @param Pointer_Grid The grid to display.

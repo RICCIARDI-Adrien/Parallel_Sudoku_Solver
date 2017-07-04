@@ -18,6 +18,6 @@
 #define CONFIGURATION_GRID_MAXIMUM_SIZE 16
 
 /** The maximum amount of threads that allowed to run simultaneously. */
-#define CONFIGURATION_THREADS_MAXIMUM_COUNT 128
+#define CONFIGURATION_THREADS_MAXIMUM_COUNT 128 // TODO rename with WORKERS ?
 
 #endif

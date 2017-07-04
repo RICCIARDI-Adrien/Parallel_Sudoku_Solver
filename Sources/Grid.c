@@ -310,6 +310,11 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 	return 0;
 }
 
+void GridCopy(TGrid *Pointer_Grid_Source, TGrid *Pointer_Grid_Destination)
+{
+	memcpy(Pointer_Grid_Destination, Pointer_Grid_Source, sizeof(TGrid));
+}
+
 void GridShow(TGrid *Pointer_Grid)
 {
 	unsigned int Row, Column;
