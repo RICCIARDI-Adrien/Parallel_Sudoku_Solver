@@ -40,7 +40,7 @@ static unsigned int Grid_Squares_Vertical_Count;
 //-------------------------------------------------------------------------------------------------
 // Public variables
 //-------------------------------------------------------------------------------------------------
-TGrid Grids[CONFIGURATION_THREADS_MAXIMUM_COUNT + 1];
+TGrid Grids[CONFIGURATION_WORKERS_MAXIMUM_COUNT + 1];
 
 //-------------------------------------------------------------------------------------------------
 // Private functions

@@ -42,7 +42,7 @@ typedef struct
 // Variables
 //-------------------------------------------------------------------------------------------------
 /** All worker grids (one per worker, plus one for the main thread). */
-extern TGrid Grids[CONFIGURATION_THREADS_MAXIMUM_COUNT + 1];
+extern TGrid Grids[CONFIGURATION_WORKERS_MAXIMUM_COUNT + 1];
 
 //-------------------------------------------------------------------------------------------------
 // Functions

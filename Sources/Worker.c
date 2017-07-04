@@ -32,7 +32,7 @@ static sem_t Worker_Semaphore_Available_Workers_Count;
 static int Worker_Is_Program_Running = 1;
 
 /** All worker thread IDs. */
-static pthread_t Worker_Thread_IDs[CONFIGURATION_THREADS_MAXIMUM_COUNT];
+static pthread_t Worker_Thread_IDs[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
