@@ -17,14 +17,11 @@
  */
 int WorkerInitialize(int Maximum_Workers_Count);
 
-/** Start a new worker thread with the provided grid.
- * @return 0 if the worker successfully started,
- * @return -1 if an error happened.
- */
-int WorkerStart(TGrid *Pointer_Grid);
+/** Release worker resources. */
+void WorkerUninitialize(void);
 
-/** Release a worker thread resources. */
-void WorkerTerminate(TGrid *Pointer_Grid);
+/** Start solving the provided grid. */
+void WorkerSolve(TGrid *Pointer_Grid);
 
 /** Block if no more worker is available. The function immediately returns if one or more workers are available to give them a grid to solve. */
 void WorkerWaitForAvailableWorker(void);

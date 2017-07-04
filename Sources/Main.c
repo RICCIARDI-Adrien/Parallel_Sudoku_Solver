@@ -20,14 +20,18 @@
 /** How many threads to use to solve the sudoku. */
 static int Main_Total_Allowed_Workers_Count = 16; // TEST
 
-/** All worker grids (one per worker, plus one for the main thread). */
-static TGrid Main_Grids[CONFIGURATION_THREADS_MAXIMUM_COUNT + 1];
 /** Point to the solved grid when it has been found. */
 static TGrid *Pointer_Solved_Grid;
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
+/** Called when the program exits. */
+static void MainExit(void)
+{
+	WorkerUninitialize();
+}
+
 /** Start solving a grid using the backtrack algorithm. Fill a number and transfer the grid to a worker.
  * @return 0 if the grid could not be solved,
  * @return 1 if the grid was successfully solved.
@@ -39,7 +43,7 @@ static int MainManageWorkers(void)
 	unsigned int Bitmask_Missing_Numbers, Tested_Number;
 	
 	// Find the first empty cell (don't remove the stack top now as the backtrack can return soon if no available number is found) 
-	if (CellsStackReadTop(&Main_Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, &Row, &Column) == 0)
+	if (CellsStackReadTop(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, &Row, &Column) == 0)
 	{
 		// No empty cell remain and there is no error in the grid : the solution has been found
 		//if (GridIsCorrectlyFilled()) return 1; TODO
@@ -53,7 +57,7 @@ static int MainManageWorkers(void)
 	}
 	
 	// Get available numbers for this cell
-	Bitmask_Missing_Numbers = GridGetCellMissingNumbers(&Main_Grids[MAIN_THREAD_GRID_INDEX], Row, Column);
+	Bitmask_Missing_Numbers = GridGetCellMissingNumbers(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column);
 	// If no number is available a bad grid has been generated... It's safe to return here as the top of the stack has not been altered
 	if (Bitmask_Missing_Numbers == 0) return 0;
 	
@@ -63,15 +67,15 @@ static int MainManageWorkers(void)
 	#endif
 	
 	// Try each available number
-	for (Tested_Number = 0; Tested_Number < Main_Grids[MAIN_THREAD_GRID_INDEX].Grid_Size; Tested_Number++)
+	for (Tested_Number = 0; Tested_Number < Grids[MAIN_THREAD_GRID_INDEX].Grid_Size; Tested_Number++)
 	{
 		// Loop until an available number is found
 		if (!(Bitmask_Missing_Numbers & (1 << Tested_Number))) continue;
 		
 		// Try the number
-		GridSetCellValue(&Main_Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
-		GridRemoveCellMissingNumber(&Main_Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
-		CellsStackRemoveTop(&Main_Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack); // Really try to fill this cell, removing it for next simulation step
+		GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
+		GridRemoveCellMissingNumber(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
+		CellsStackRemoveTop(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack); // Really try to fill this cell, removing it for next simulation step
 		
 		#if CONFIGURATION_IS_DEBUG_ENABLED
 			printf("[%s] Modified grid :\n", __FUNCTION__);
@@ -85,29 +89,19 @@ static int MainManageWorkers(void)
 		for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
 		{
 			// Grid has been solved, stop searching
-			if (Main_Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+			if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
 			{
-				// Release worker resources (grid is not affected by worker termination)
-				WorkerTerminate(&Main_Grids[i]);
-				
-				Pointer_Solved_Grid = &Main_Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
+				Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
 				Is_Grid_Solved = 1;
 				break;
 			}
 			
 			// Is the grid available to start a new job ?
-			if (Main_Grids[i].State == GRID_STATE_SOLVING_FAILED)
+			if (Grids[i].State == GRID_STATE_SOLVING_FAILED)
 			{
-				// Release worker resources
-				WorkerTerminate(&Main_Grids[i]);
-				
 				// Fill the grid with the new one to solve
-				GridCopy(&Main_Grids[MAIN_THREAD_GRID_INDEX], &Main_Grids[i]);
-				if (WorkerStart(&Main_Grids[i]) != 0)
-				{
-					printf("Error : failed to start a worker thread.\n");
-					exit(EXIT_FAILURE);
-				}
+				GridCopy(&Grids[MAIN_THREAD_GRID_INDEX], &Grids[i]);
+				WorkerSolve(&Grids[i]);
 				break;
 			}
 		}
@@ -116,9 +110,9 @@ static int MainManageWorkers(void)
 		if (Is_Grid_Solved || (MainManageWorkers() == 1)) return 1; // Good solution found, go to tree root
 		
 		// Bad solution found, restore old value
-		GridSetCellValue(&Main_Grids[MAIN_THREAD_GRID_INDEX], Row, Column, GRID_EMPTY_CELL_VALUE);
-		GridRestoreCellMissingNumber(&Main_Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
-		CellsStackPush(&Main_Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, Row, Column); // The cell is available again
+		GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, GRID_EMPTY_CELL_VALUE);
+		GridRestoreCellMissingNumber(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
+		CellsStackPush(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, Row, Column); // The cell is available again
 		
 		#if CONFIGURATION_IS_DEBUG_ENABLED
 			printf("[%s] Restored grid :\n", __FUNCTION__);
@@ -157,12 +151,13 @@ int main(int argc, char *argv[])
 		printf("Error : failed to initialize worker module.\n");
 		return EXIT_FAILURE;
 	}
+	atexit(MainExit); // Automatically release the worker resources when the program exits
 	
 	// Set all worker grids as available to use
-	for (i = 0; i < CONFIGURATION_THREADS_MAXIMUM_COUNT; i++) Main_Grids[i].State = GRID_STATE_SOLVING_FAILED;
+	for (i = 0; i < CONFIGURATION_THREADS_MAXIMUM_COUNT; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
 	
 	// Try to load the grid file
-	switch (GridLoadFromFile(&Main_Grids[MAIN_THREAD_GRID_INDEX], String_Grid_File_Name))
+	switch (GridLoadFromFile(&Grids[MAIN_THREAD_GRID_INDEX], String_Grid_File_Name))
 	{
 		case -1:
 			printf("Error : can't open file %s.\n", String_Grid_File_Name);
@@ -184,7 +179,7 @@ int main(int argc, char *argv[])
 	printf("File : %s.\n\n", String_Grid_File_Name);
 	// Show grid
 	printf("Grid to solve :\n");
-	GridShow(&Main_Grids[MAIN_THREAD_GRID_INDEX]);
+	GridShow(&Grids[MAIN_THREAD_GRID_INDEX]);
 	putchar('\n');
 	
 	// Start solving

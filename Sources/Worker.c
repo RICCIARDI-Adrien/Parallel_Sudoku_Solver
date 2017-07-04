@@ -6,23 +6,26 @@
 #include <Grid.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdio.h>
 #include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
+/** How many workers are used. */
+static int Worker_Maximum_Workers_Count;
 /** Use a semaphore to count how many available workers remain. */
-static sem_t Worker_Available_Workers_Count;
+static sem_t Worker_Semaphore_Available_Workers_Count;
+
+/** Tell that the program is exiting and that all threads must quit. */
+static int Worker_Is_Program_Running = 1;
+
+/** All worker thread IDs. */
+static pthread_t Worker_Thread_IDs[CONFIGURATION_THREADS_MAXIMUM_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
-int WorkerInitialize(int Maximum_Workers_Count)
-{
-	if (sem_init(&Worker_Available_Workers_Count, 0, Maximum_Workers_Count) != 0) return -1;
-	return 0;
-}
-
 /** Solve a grid using the backtrack algorithm.
  * @return 0 if the grid could not be solved,
  * @return 1 if the grid was successfully solved.
@@ -100,13 +103,19 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 	int Is_Grid_Solved;
 	TGrid *Pointer_Grid = Pointer_Grid_To_Solve;
 	
-	// Start solving
-	Is_Grid_Solved = WorkerSolveGrid(Pointer_Grid);
-	if (Is_Grid_Solved) Pointer_Grid->State = GRID_STATE_SOLVING_SUCCESSED;
-	else Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
+	while (Worker_Is_Program_Running)
+	{
+		// TODO wait condition dans grid
+		while (Pointer_Grid->State != GRID_STATE_BUSY);
+		
+		// Start solving
+		Is_Grid_Solved = WorkerSolveGrid(Pointer_Grid);
+		if (Is_Grid_Solved) Pointer_Grid->State = GRID_STATE_SOLVING_SUCCESSED;
+		else Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
 	
-	// Tell that the worker is available for a new job
-	sem_post(&Worker_Available_Workers_Count); // Increment the atomic counter
+		// Tell that the worker is available for a new job
+		sem_post(&Worker_Semaphore_Available_Workers_Count); // Increment the atomic counter
+	}
 	
 	return NULL;
 }
@@ -114,27 +123,42 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
-int WorkerStart(TGrid *Pointer_Grid)
+int WorkerInitialize(int Maximum_Workers_Count)
 {
-	pthread_t Thread_ID;
+	int i;
 	
-	// Create new thread and feed it with the provided grid
-	if (pthread_create(&Thread_ID, NULL, WorkerThreadFunction, Pointer_Grid) != 0) return -1;
-	Pointer_Grid->Thread_ID = Thread_ID;
+	// Create the atomic counter
+	if (sem_init(&Worker_Semaphore_Available_Workers_Count, 0, Maximum_Workers_Count) != 0) return -1;
+	Worker_Maximum_Workers_Count = Maximum_Workers_Count;
+	
+	// Create all threads
+	for (i = 0; i < Worker_Maximum_Workers_Count; i++)
+	{
+		if (pthread_create(&Worker_Thread_IDs[i], NULL, WorkerThreadFunction, &Grids[i]) != 0) return -1;
+	}
+
 	return 0;
 }
 
-void WorkerTerminate(TGrid *Pointer_Grid)
+void WorkerUninitialize(void)
 {
-	pthread_join(Pointer_Grid->Thread_ID, NULL);
+	//int i;
+	
+	// Stop all threads
+	Worker_Is_Program_Running = 0;
+	//for (i = 0; i < Worker_Semaphore_Available_Workers_Count; i++) pthread_join(Worker_Thread_IDs[i], NULL); // TODO send wait condition wake up and put solved grid to fasten threads quitting
+	
+	// Release the semaphore
+	sem_destroy(&Worker_Semaphore_Available_Workers_Count);
+}
+
+void WorkerSolve(TGrid *Pointer_Grid)
+{
+	// TODO with wait condition
+	Pointer_Grid->State = GRID_STATE_BUSY;
 }
 
 void WorkerWaitForAvailableWorker(void)
 {
-	sem_wait(&Worker_Available_Workers_Count); // Decrement the atomic counter
-}
-
-// TODO
-void WorkerStopAll(void)
-{
+	sem_wait(&Worker_Semaphore_Available_Workers_Count); // Decrement the atomic counter
 }
