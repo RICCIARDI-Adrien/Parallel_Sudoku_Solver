@@ -2,6 +2,7 @@
  * @see Grid.h for description.
  * @author Adrien RICCIARDI
  */
+#include <assert.h>
 #include <Cells_Stack.h>
 #include <Configuration.h>
 #include <Grid.h>
@@ -342,7 +343,9 @@ unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Ro
 	unsigned int Bitmask_Missing_Numbers, Square_Index;
 	
 	// No need to check a filled cell
-	if (Pointer_Grid->Cells[Cell_Row][Cell_Column] != GRID_EMPTY_CELL_VALUE) return 0; // TODO add assert here instead of check
+	#if CONFIGURATION_IS_DEBUG_ENABLED
+		assert(Pointer_Grid->Cells[Cell_Row][Cell_Column] == GRID_EMPTY_CELL_VALUE);
+	#endif
 	
 	// Determinate the index of the square where the cell is located
 	Square_Index = GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column);
@@ -385,3 +388,26 @@ void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, un
 	Pointer_Grid->Allowed_Numbers_Bitmask_Columns[Cell_Column] |= New_Bitmask;
 	Pointer_Grid->Allowed_Numbers_Bitmask_Squares[GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column)] |= New_Bitmask;
 }
+
+#if CONFIGURATION_IS_DEBUG_ENABLED
+	void GridShowBitmask(unsigned int Bitmask)
+	{
+		int i, j = 0;
+		
+		for (i = Grid_Size; i >= 0 ; i--)
+		{
+			// Show '1' or '0' according to bit value
+			if (Bitmask & (1 << i)) putchar('1');
+			else putchar('0');
+				
+			// Make 4-bit groups to ease reading
+			j++;
+			if (j == 4)
+			{
+				putchar(' ');
+				j = 0;
+			}
+		}
+		printf("\n");
+	}
+#endif

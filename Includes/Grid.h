@@ -101,4 +101,9 @@ void GridRemoveCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, uns
  */
 void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Number);
 
+/** Show a bitmask in binary representation.
+ * @param Bitmask The bitmask to visualize.
+ */
+void GridShowBitmask(unsigned int Bitmask);
+
 #endif

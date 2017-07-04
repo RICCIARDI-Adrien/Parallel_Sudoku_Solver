@@ -7,7 +7,18 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <Worker.h>
+
+//-------------------------------------------------------------------------------------------------
+// Private macros
+//-------------------------------------------------------------------------------------------------
+// Ignore "misleading-indentation" warning that triggers when compiling in debug mode
+#if CONFIGURATION_IS_DEBUG_ENABLED
+	#pragma GCC diagnostic ignored "-Wmisleading-indentation"
+#endif
 
 //-------------------------------------------------------------------------------------------------
 // Private variables
@@ -70,12 +81,6 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 		GridRemoveCellMissingNumber(Pointer_Grid, Row, Column, Tested_Number);
 		CellsStackRemoveTop(&Pointer_Grid->Empty_Cells_Stack); // Really try to fill this cell, removing it for next simulation step
 		
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] Modified grid :\n", __FUNCTION__);
-			GridShowDifferences(GRID_COLOR_CODE_BLUE);
-			putchar('\n');
-		#endif
-
 		// Simulate next state
 		if (WorkerSolveGrid(Pointer_Grid) == 1) return 1; // Good solution found, go to tree root
 		
@@ -83,12 +88,6 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 		GridSetCellValue(Pointer_Grid, Row, Column, GRID_EMPTY_CELL_VALUE);
 		GridRestoreCellMissingNumber(Pointer_Grid, Row, Column, Tested_Number);
 		CellsStackPush(&Pointer_Grid->Empty_Cells_Stack, Row, Column); // The cell is available again
-		
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] Restored grid :\n", __FUNCTION__);
-			GridShowDifferences(GRID_COLOR_CODE_RED);
-			putchar('\n');
-		#endif
 	}
 	// All numbers were tested unsuccessfully, go back into the tree
 	return 0;
@@ -102,17 +101,34 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 {
 	int Is_Grid_Solved;
 	TGrid *Pointer_Grid = Pointer_Grid_To_Solve;
+	#if CONFIGURATION_IS_DEBUG_ENABLED
+		pid_t Thread_PID;
+	#endif
+		
+	#if CONFIGURATION_IS_DEBUG_ENABLED
+		Thread_PID = syscall(SYS_gettid);
+	#endif
 	
 	while (Worker_Is_Program_Running)
 	{
+		#if CONFIGURATION_IS_DEBUG_ENABLED
+			printf("[%s (TID %d)] Waiting for grid to solve...\n", __FUNCTION__, Thread_PID);
+		#endif
+		
 		// TODO wait condition dans grid
 		while (Pointer_Grid->State != GRID_STATE_BUSY);
+		
+		#if CONFIGURATION_IS_DEBUG_ENABLED
+			printf("[%s (TID %d)] Grid to solve...\n", __FUNCTION__, Thread_PID);
+			GridShow(Pointer_Grid);
+			putchar('\n');
+		#endif
 		
 		// Start solving
 		Is_Grid_Solved = WorkerSolveGrid(Pointer_Grid);
 		if (Is_Grid_Solved) Pointer_Grid->State = GRID_STATE_SOLVING_SUCCESSED;
 		else Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
-	
+		
 		// Tell that the worker is available for a new job
 		sem_post(&Worker_Semaphore_Available_Workers_Count); // Increment the atomic counter
 	}

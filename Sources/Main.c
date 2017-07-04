@@ -77,12 +77,6 @@ static int MainManageWorkers(void)
 		GridRemoveCellMissingNumber(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
 		CellsStackRemoveTop(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack); // Really try to fill this cell, removing it for next simulation step
 		
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] Modified grid :\n", __FUNCTION__);
-			GridShowDifferences(GRID_COLOR_CODE_BLUE);
-			putchar('\n');
-		#endif
-		
 		// Start a new worker with this specific grid
 		WorkerWaitForAvailableWorker();
 
@@ -114,12 +108,6 @@ static int MainManageWorkers(void)
 		GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, GRID_EMPTY_CELL_VALUE);
 		GridRestoreCellMissingNumber(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
 		CellsStackPush(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, Row, Column); // The cell is available again
-		
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] Restored grid :\n", __FUNCTION__);
-			GridShowDifferences(GRID_COLOR_CODE_RED);
-			putchar('\n');
-		#endif
 	}
 	// All numbers were tested unsuccessfully, go back into the tree
 	return 0;
