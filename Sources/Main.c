@@ -6,6 +6,7 @@
 #include <Grid.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
 // Private constants
@@ -68,5 +69,16 @@ int main(int argc, char *argv[])
 	GridShow(&Main_Grids[MAIN_THREAD_GRID_INDEX]);
 	putchar('\n');
 	
+	// TEST
+	{
+		int a;
+		
+		a = WorkerStart(&Main_Grids[MAIN_THREAD_GRID_INDEX]);
+		printf("res : %d\n", a);
+		
+		GridShow(&Main_Grids[MAIN_THREAD_GRID_INDEX]);
+		putchar('\n');
+	}
 	
+	return EXIT_SUCCESS;
 }

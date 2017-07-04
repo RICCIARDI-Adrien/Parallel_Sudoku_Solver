@@ -9,6 +9,16 @@
 #include <string.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private macros
+//-------------------------------------------------------------------------------------------------
+/** Get the square index (in the Bitmask_Squares array) in which the cell is located. The formula is Square_Row * Squares_Horizontal_Count + Square_Column.
+ * @param Row Cell row coordinate.
+ * @param Column Cell column coordinate.
+ * @return The square index in the Bitmask_Squares array.
+ */
+#define GRID_GET_CELL_SQUARE_INDEX(Row, Column) ((Row / Grid_Square_Height) * Grid_Squares_Horizontal_Count + (Column / Grid_Square_Width))
+
+//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** Current grid side size in cells. */
@@ -209,6 +219,7 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 		#endif
 		return -2;
 	}
+	Pointer_Grid->Grid_Size = Grid_Size;
 
 	// Check if the grid size can be handled by the solver
 	switch (Grid_Size)
@@ -235,6 +246,7 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 			Grid_Square_Width = 4;
 			Grid_Square_Height = 4;
 			Grid_Display_Starting_Number = 0;
+			break;
 
 		default:
 			#if CONFIGURATION_IS_DEBUG_ENABLED
@@ -313,4 +325,53 @@ void GridShow(TGrid *Pointer_Grid)
 		}
 		putchar('\n');
 	}
+}
+
+unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column)
+{
+	unsigned int Bitmask_Missing_Numbers, Square_Index;
+	
+	// No need to check a filled cell
+	if (Pointer_Grid->Cells[Cell_Row][Cell_Column] != GRID_EMPTY_CELL_VALUE) return 0; // TODO add assert here instead of check
+	
+	// Determinate the index of the square where the cell is located
+	Square_Index = GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column);
+	
+	// Find missing numbers simultaneously on the row, the column and the square of the cell
+	Bitmask_Missing_Numbers = Pointer_Grid->Allowed_Numbers_Bitmask_Rows[Cell_Row] & Pointer_Grid->Allowed_Numbers_Bitmask_Columns[Cell_Column] & Pointer_Grid->Allowed_Numbers_Bitmask_Squares[Square_Index];
+	return Bitmask_Missing_Numbers;
+}
+
+void GridSetCellValue(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Cell_Value)
+{
+	// Check coordinates in debug mode
+	#if CONFIGURATION_IS_DEBUG_ENABLED
+		assert(Cell_Row < Grid_Size);
+		assert(Cell_Column < Grid_Size);
+	#endif
+	Pointer_Grid->Cells[Cell_Row][Cell_Column] = Cell_Value;
+}
+
+void GridRemoveCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Number)
+{
+	unsigned int New_Bitmask;
+	
+	New_Bitmask = ~(1 << Number);
+	
+	// Disable the Number bit in all relevant bitmasks
+	Pointer_Grid->Allowed_Numbers_Bitmask_Rows[Cell_Row] &= New_Bitmask;
+	Pointer_Grid->Allowed_Numbers_Bitmask_Columns[Cell_Column] &= New_Bitmask;
+	Pointer_Grid->Allowed_Numbers_Bitmask_Squares[GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column)] &= New_Bitmask;
+}
+
+void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Number)
+{
+	unsigned int New_Bitmask;
+	
+	New_Bitmask = 1 << Number;
+	
+	// Disable the Number bit in all relevant bitmasks
+	Pointer_Grid->Allowed_Numbers_Bitmask_Rows[Cell_Row] |= New_Bitmask;
+	Pointer_Grid->Allowed_Numbers_Bitmask_Columns[Cell_Column] |= New_Bitmask;
+	Pointer_Grid->Allowed_Numbers_Bitmask_Squares[GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column)] |= New_Bitmask;
 }
