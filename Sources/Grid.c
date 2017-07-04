@@ -389,6 +389,73 @@ void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, un
 	Pointer_Grid->Allowed_Numbers_Bitmask_Squares[GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column)] |= New_Bitmask;
 }
 
+int GridIsCorrectlyFilled(TGrid *Pointer_Grid)
+{
+	unsigned int Row, Column, Cell_Row, Cell_Column, Column_Start, Row_End, Column_End;
+	int Number, Is_Number_Found[CONFIGURATION_GRID_MAXIMUM_SIZE];
+	
+	// Check each row correctness
+	for (Row = 0; Row < Grid_Size; Row++)
+	{
+		// Reset boolean array of found numbers
+		memset(Is_Number_Found, 0, sizeof(Is_Number_Found));
+		
+		// Find all filled numbers
+		for (Column = 0; Column < Grid_Size; Column++)
+		{
+			Number = Pointer_Grid->Cells[Row][Column];
+			if (Number == GRID_EMPTY_CELL_VALUE) continue; // Ignore empty cells
+			if (Is_Number_Found[Number]) return 0; // The number is present more than one time
+			Is_Number_Found[Number] = 1;
+		}
+	}
+	
+	// Check each column correctness
+	for (Column = 0; Column < Grid_Size; Column++)
+	{
+		// Reset boolean array of found numbers
+		memset(Is_Number_Found, 0, sizeof(Is_Number_Found));
+		
+		// Find all filled numbers
+		for (Row = 0; Row < Grid_Size; Row++)
+		{
+			Number = Pointer_Grid->Cells[Row][Column];
+			if (Number == GRID_EMPTY_CELL_VALUE) continue; // Ignore empty cells
+			if (Is_Number_Found[Number]) return 0; // The number is present more than one time
+			Is_Number_Found[Number] = 1;
+		}
+	}
+	
+	// Check each cell in each square
+	for (Cell_Row = 0; Cell_Row < Grid_Size; Cell_Row++)
+	{
+		for (Cell_Column = 0; Cell_Column < Grid_Size; Cell_Column++)
+		{
+			// Reset boolean array of found numbers
+			memset(Is_Number_Found, 0, sizeof(Is_Number_Found));
+			
+			// Determine coordinates of the square where the cell is located
+			Row = (Cell_Row / Grid_Square_Height) * Grid_Square_Height;
+			Column_Start = (Cell_Column / Grid_Square_Width) * Grid_Square_Width;
+			Row_End = Row + Grid_Square_Height;
+			Column_End = Column_Start + Grid_Square_Width;
+			
+			// Find numbers present into the square
+			for ( ; Row < Row_End; Row++)
+			{
+				for (Column = Column_Start; Column < Column_End; Column++)
+				{
+					Number = Pointer_Grid->Cells[Row][Column];
+					if (Number == GRID_EMPTY_CELL_VALUE) continue; // Ignore empty cells
+					if (Is_Number_Found[Number]) return 0; // The number is present more than one time
+					Is_Number_Found[Number] = 1;
+				}
+			}
+		}
+	}
+	return 1;
+}
+
 #if CONFIGURATION_IS_DEBUG_ENABLED
 	void GridShowBitmask(unsigned int Bitmask)
 	{

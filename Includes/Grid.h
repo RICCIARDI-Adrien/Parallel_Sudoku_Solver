@@ -101,6 +101,13 @@ void GridRemoveCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, uns
  */
 void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Number);
 
+/** Tell if the grid is correctly filled (there is no bad at wrong position).
+ * @param Pointer_Grid The grid to check.
+ * @return 0 if the grid is erroneously filled,
+ * @return 1 if the grid is correctly filled.
+ */
+int GridIsCorrectlyFilled(TGrid *Pointer_Grid);
+
 /** Show a bitmask in binary representation.
  * @param Bitmask The bitmask to visualize.
  */

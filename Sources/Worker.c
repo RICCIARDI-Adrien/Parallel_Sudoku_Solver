@@ -50,8 +50,7 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 	if (CellsStackReadTop(&Pointer_Grid->Empty_Cells_Stack, &Row, &Column) == 0)
 	{
 		// No empty cell remain and there is no error in the grid : the solution has been found
-		//if (GridIsCorrectlyFilled()) return 1; TODO
-		return 1; // TEST
+		if (GridIsCorrectlyFilled(Pointer_Grid)) return 1;
 		
 		// A bad grid was generated...
 		#if CONFIGURATION_IS_DEBUG_ENABLED
