@@ -35,8 +35,7 @@ typedef struct
 	unsigned int Allowed_Numbers_Bitmask_Columns[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each column (a bit is set when the number is allowed).
 	unsigned int Allowed_Numbers_Bitmask_Squares[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each square (a bit is set when the number is allowed).
 	TCellsStack Empty_Cells_Stack; //!< Contain all grid empty cells to avoid loosing time searching for them.
-	TGridState State; //!< In which state the grid is right now.
-	pthread_t Thread_ID; //!< Hold the thread ID of the worker that is solving the grid (so the thread can be stopped in a clean way).
+	volatile TGridState State; //!< In which state the grid is right now.
 } TGrid;
 
 //-------------------------------------------------------------------------------------------------

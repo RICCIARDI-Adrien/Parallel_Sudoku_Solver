@@ -18,7 +18,7 @@
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** How many threads to use to solve the sudoku. */
-static int Main_Total_Allowed_Workers_Count = 16; // TEST
+static int Main_Total_Allowed_Workers_Count;
 
 /** Point to the solved grid when it has been found. */
 static TGrid *Pointer_Solved_Grid;
@@ -85,6 +85,7 @@ static int MainManageWorkers(void)
 		
 		// Start a new worker with this specific grid
 		WorkerWaitForAvailableWorker();
+
 		// Find the first finished grid TODO optimize to avoid parsing all grids all the time
 		for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
 		{
@@ -138,12 +139,21 @@ int main(int argc, char *argv[])
 	printf("+------------------------+\n\n");
 	
 	// Check parameters
-	if (argc != 2) // TODO Main_Total_Allowed_Workers_Count
+	if (argc != 3)
 	{
-		printf("Usage : %s Grid_File_Name\n", argv[0]);
+		printf("Usage : %s Maximum_Parallel_Threads Grid_File_Name\n", argv[0]);
 		return EXIT_FAILURE;
 	}
-	String_Grid_File_Name = argv[1];
+	Main_Total_Allowed_Workers_Count = atoi(argv[1]);
+	if (Main_Total_Allowed_Workers_Count == 0)
+	{
+		printf("Error : maximum threads number must be a number greater than or equal to 1.\n");
+		return EXIT_FAILURE;
+	}
+	String_Grid_File_Name = argv[2];
+	
+	// Set all worker grids as available to use
+	for (i = 0; i < CONFIGURATION_THREADS_MAXIMUM_COUNT; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
 	
 	// Tell how many workers can be started at the same time
 	if (WorkerInitialize(Main_Total_Allowed_Workers_Count) != 0)
@@ -152,9 +162,6 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 	atexit(MainExit); // Automatically release the worker resources when the program exits
-	
-	// Set all worker grids as available to use
-	for (i = 0; i < CONFIGURATION_THREADS_MAXIMUM_COUNT; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
 	
 	// Try to load the grid file
 	switch (GridLoadFromFile(&Grids[MAIN_THREAD_GRID_INDEX], String_Grid_File_Name))
