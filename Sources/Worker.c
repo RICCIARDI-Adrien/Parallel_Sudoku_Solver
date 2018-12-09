@@ -23,13 +23,8 @@
 //-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
-/** How many workers are used. */
-static int Worker_Maximum_Workers_Count;
 /** Use a semaphore to count how many available workers remain. */
 static sem_t Worker_Semaphore_Available_Workers_Count;
-
-/** Tell that the program is exiting and that all threads must quit. */
-static int Worker_Is_Program_Running = 1;
 
 /** All worker thread IDs. */
 static pthread_t Worker_Thread_IDs[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
@@ -108,13 +103,14 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 		Thread_PID = syscall(SYS_gettid);
 	#endif
 	
-	while (Worker_Is_Program_Running)
+	// Threads do not gracefully terminate, they stop when program exits (this avoids checking for a lot of conditions or changing thread cancellation state)
+	while (1)
 	{
 		#if CONFIGURATION_IS_DEBUG_ENABLED
 			printf("[%s (TID %d)] Waiting for grid to solve...\n", __FUNCTION__, Thread_PID);
 		#endif
 		
-		// TODO wait condition dans grid
+		// Doing a busy loop consumes 100% CPU but allows the thread to start as soon as possible
 		while (Pointer_Grid->State != GRID_STATE_BUSY);
 		
 		#if CONFIGURATION_IS_DEBUG_ENABLED
@@ -144,10 +140,9 @@ int WorkerInitialize(int Maximum_Workers_Count)
 	
 	// Create the atomic counter
 	if (sem_init(&Worker_Semaphore_Available_Workers_Count, 0, Maximum_Workers_Count) != 0) return -1;
-	Worker_Maximum_Workers_Count = Maximum_Workers_Count;
 	
 	// Create all threads
-	for (i = 0; i < Worker_Maximum_Workers_Count; i++)
+	for (i = 0; i < Maximum_Workers_Count; i++)
 	{
 		if (pthread_create(&Worker_Thread_IDs[i], NULL, WorkerThreadFunction, &Grids[i]) != 0) return -1;
 	}
@@ -157,19 +152,12 @@ int WorkerInitialize(int Maximum_Workers_Count)
 
 void WorkerUninitialize(void)
 {
-	//int i;
-	
-	// Stop all threads
-	Worker_Is_Program_Running = 0;
-	//for (i = 0; i < Worker_Semaphore_Available_Workers_Count; i++) pthread_join(Worker_Thread_IDs[i], NULL); // TODO send wait condition wake up and put solved grid to fasten threads quitting
-	
-	// Release the semaphore
+	// Release the semaphore (threads are not gracefully released because they do not handle data that should be kept safe, like files)
 	sem_destroy(&Worker_Semaphore_Available_Workers_Count);
 }
 
 void WorkerSolve(TGrid *Pointer_Grid)
 {
-	// TODO with wait condition
 	Pointer_Grid->State = GRID_STATE_BUSY;
 }
 
