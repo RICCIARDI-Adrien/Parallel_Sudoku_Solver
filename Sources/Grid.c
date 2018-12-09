@@ -23,19 +23,19 @@
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** Current grid side size in cells. */
-static unsigned int Grid_Size;
+static unsigned int Grid_Size; // TODO useful ?
 
 /** The grid starting number (usually 0 or 1) added to all cell values when the grid is displayed. */
 static int Grid_Display_Starting_Number;
 
 /** Horizontal dimension of a square in cells. */
-static unsigned int Grid_Square_Width;
+static unsigned int Grid_Square_Width; // TODO useful ?
 /** Vertical dimension of a square in cells. */
-static unsigned int Grid_Square_Height;
+static unsigned int Grid_Square_Height; // TODO useful ?
 /** How many squares in a row. */
-static unsigned int Grid_Squares_Horizontal_Count;
+static unsigned int Grid_Squares_Horizontal_Count; // TODO useful ?
 /** How many squares in a column. */
-static unsigned int Grid_Squares_Vertical_Count;
+static unsigned int Grid_Squares_Vertical_Count; // TODO useful ?
 
 //-------------------------------------------------------------------------------------------------
 // Public variables
@@ -318,7 +318,12 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 
 void GridCopy(TGrid *Pointer_Grid_Source, TGrid *Pointer_Grid_Destination)
 {
+	// TODO copy only data that won't be modified ?
 	memcpy(Pointer_Grid_Destination, Pointer_Grid_Source, sizeof(TGrid));
+	
+	// Recreate internal structures as the provided grid has been modified by the main thread
+	GridGenerateInitialBitmasks(Pointer_Grid_Destination);
+	GridFillStackWithEmptyCells(Pointer_Grid_Destination);
 }
 
 void GridShow(TGrid *Pointer_Grid)
@@ -342,10 +347,14 @@ unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Ro
 {
 	unsigned int Bitmask_Missing_Numbers, Square_Index;
 	
-	// No need to check a filled cell
+	// Check coordinates in debug mode
 	#if CONFIGURATION_IS_DEBUG_ENABLED
-		assert(Pointer_Grid->Cells[Cell_Row][Cell_Column] == GRID_EMPTY_CELL_VALUE);
+		assert(Cell_Row < Pointer_Grid->Grid_Size);
+		assert(Cell_Column < Pointer_Grid->Grid_Size);
 	#endif
+	
+	// Nothing to do if the cell has a value yet
+	if (Pointer_Grid->Cells[Cell_Row][Cell_Column] != GRID_EMPTY_CELL_VALUE) return 0;
 	
 	// Determinate the index of the square where the cell is located
 	Square_Index = GRID_GET_CELL_SQUARE_INDEX(Cell_Row, Cell_Column);

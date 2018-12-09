@@ -46,7 +46,7 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 	int Row, Column;
 	unsigned int Bitmask_Missing_Numbers, Tested_Number;
 	
-	// Find the first empty cell (don't remove the stack top now as the backtrack can return soon if no available number is found) 
+	// Find the first empty cell (don't remove the stack top now as the backtrack can return soon if no available number is found)
 	if (CellsStackReadTop(&Pointer_Grid->Empty_Cells_Stack, &Row, &Column) == 0)
 	{
 		// No empty cell remain and there is no error in the grid : the solution has been found
@@ -118,7 +118,7 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 		while (Pointer_Grid->State != GRID_STATE_BUSY);
 		
 		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s (TID %d)] Grid to solve...\n", __FUNCTION__, Thread_PID);
+			printf("[%s (TID %d)] Grid to solve :\n", __FUNCTION__, Thread_PID);
 			GridShow(Pointer_Grid);
 			putchar('\n');
 		#endif
@@ -176,4 +176,7 @@ void WorkerSolve(TGrid *Pointer_Grid)
 void WorkerWaitForAvailableWorker(void)
 {
 	sem_wait(&Worker_Semaphore_Available_Workers_Count); // Decrement the atomic counter
+	#if CONFIGURATION_IS_DEBUG_ENABLED
+		printf("[%s] A worker is available.\n", __FUNCTION__);
+	#endif
 }

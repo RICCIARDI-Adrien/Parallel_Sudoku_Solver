@@ -38,77 +38,69 @@ static void MainExit(void)
  */
 static int MainManageWorkers(void)
 {
-	int Row, Column, i;
-	static int Is_Grid_Solved = 0;
-	unsigned int Bitmask_Missing_Numbers, Tested_Number;
+	unsigned int Row, Column, Bitmask_Missing_Numbers, Grid_Size, Tested_Number;
+	int i;
 	
-	// Find the first empty cell (don't remove the stack top now as the backtrack can return soon if no available number is found) 
-	if (CellsStackReadTop(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, &Row, &Column) == 0)
+	// Cache grid size
+	Grid_Size = Grids[MAIN_THREAD_GRID_INDEX].Grid_Size;
+	
+	// Walk across all cells to set the first empty one value, then provide it to a worker
+	for (Row = 0; Row < Grid_Size; Row++)
 	{
-		// No empty cell remain and there is no error in the grid : the solution has been found
-		if (GridIsCorrectlyFilled(&Grids[MAIN_THREAD_GRID_INDEX])) return 1;
-		
-		// A bad grid was generated...
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] Bad grid generated !\n", __FUNCTION__);
-		#endif
-		return 0;
-	}
-	
-	// Get available numbers for this cell
-	Bitmask_Missing_Numbers = GridGetCellMissingNumbers(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column);
-	// If no number is available a bad grid has been generated... It's safe to return here as the top of the stack has not been altered
-	if (Bitmask_Missing_Numbers == 0) return 0;
-	
-	#if CONFIGURATION_IS_DEBUG_ENABLED
-		printf("[%s] Available numbers for (row %d ; column %d) : ", __FUNCTION__, Row, Column);
-		GridShowBitmask(Bitmask_Missing_Numbers);
-	#endif
-	
-	// Try each available number
-	for (Tested_Number = 0; Tested_Number < Grids[MAIN_THREAD_GRID_INDEX].Grid_Size; Tested_Number++)
-	{
-		// Loop until an available number is found
-		if (!(Bitmask_Missing_Numbers & (1 << Tested_Number))) continue;
-		
-		// Try the number
-		GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
-		GridRemoveCellMissingNumber(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
-		CellsStackRemoveTop(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack); // Really try to fill this cell, removing it for next simulation step
-		
-		// Start a new worker with this specific grid
-		WorkerWaitForAvailableWorker();
-
-		// Find the first finished grid TODO optimize to avoid parsing all grids all the time
-		for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
+		for (Column = 0; Column < Grid_Size; Column++)
 		{
-			// Grid has been solved, stop searching
-			if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+			// Is this cell empty ?
+			Bitmask_Missing_Numbers = GridGetCellMissingNumbers(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column);
+			if (Bitmask_Missing_Numbers == 0) continue; // The cell is not empty
+			
+			// Fill all available numbers
+			for (Tested_Number = 0; Tested_Number < Grid_Size; Tested_Number++)
 			{
-				Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
-				Is_Grid_Solved = 1;
-				break;
+				// Loop until an available number is found
+				if (!(Bitmask_Missing_Numbers & (1 << Tested_Number))) continue;
+				
+				// Provide this grid to a worker
+				GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
+				
+				// Find the first finished grid TODO optimize to avoid parsing all grids all the time
+				WorkerWaitForAvailableWorker();
+				
+				for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
+				{
+					// Grid has been solved, stop searching
+					if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+					{
+						Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
+						return 1;
+					}
+					
+					// Is the grid available to start a new job ?
+					if (Grids[i].State == GRID_STATE_SOLVING_FAILED)
+					{
+						// Fill the grid with the new one to solve
+						GridCopy(&Grids[MAIN_THREAD_GRID_INDEX], &Grids[i]);
+						WorkerSolve(&Grids[i]);
+						break;
+					}
+				}
 			}
 			
-			// Is the grid available to start a new job ?
-			if (Grids[i].State == GRID_STATE_SOLVING_FAILED)
-			{
-				// Fill the grid with the new one to solve
-				GridCopy(&Grids[MAIN_THREAD_GRID_INDEX], &Grids[i]);
-				WorkerSolve(&Grids[i]);
-				break;
-			}
+			// Restore empty cell, each worker must receive a grid with only one value altered
+			GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, GRID_EMPTY_CELL_VALUE);
 		}
-
-		// Simulate next state
-		if (Is_Grid_Solved || (MainManageWorkers() == 1)) return 1; // Good solution found, go to tree root
-		
-		// Bad solution found, restore old value
-		GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, GRID_EMPTY_CELL_VALUE);
-		GridRestoreCellMissingNumber(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
-		CellsStackPush(&Grids[MAIN_THREAD_GRID_INDEX].Empty_Cells_Stack, Row, Column); // The cell is available again
 	}
-	// All numbers were tested unsuccessfully, go back into the tree
+	
+	// Search for a solved grid
+	for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
+	{
+		// Grid has been solved, stop searching
+		if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+		{
+			Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
+			return 1;
+		}
+	}
+	
 	return 0;
 }
 
