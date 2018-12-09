@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -40,7 +41,7 @@ static void MainExit(void)
 static int MainManageWorkers(void)
 {
 	unsigned int Row, Column, Bitmask_Missing_Numbers, Grid_Size, Tested_Number;
-	int i;
+	int i, Have_All_Workers_Failed;
 	
 	// Cache grid size
 	Grid_Size = Grids[MAIN_THREAD_GRID_INDEX].Grid_Size;
@@ -91,16 +92,27 @@ static int MainManageWorkers(void)
 		}
 	}
 	
-	// Search for a solved grid
-	for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
+	// There is no more job to provide to workers, wait for a result
+	do
 	{
-		// Grid has been solved, stop searching
-		if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+		// Search for a solved grid
+		Have_All_Workers_Failed = 1;
+		for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
 		{
-			Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
-			return 1;
+			// Grid has been solved, stop searching
+			if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+			{
+				Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
+				return 1;
+			}
+			
+			// Are some workers still searching ?
+			if (Grids[i].State == GRID_STATE_BUSY) Have_All_Workers_Failed = 0;
 		}
-	}
+		
+		// Avoid using 100% CPU
+		usleep(1000000);
+	} while (!Have_All_Workers_Failed);
 	
 	return 0;
 }
