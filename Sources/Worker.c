@@ -1,5 +1,5 @@
 /** @file Worker.c
- * @see Worker.h for description.
+ * See Worker.h for description.
  * @author Adrien RICCIARDI
  */
 #include <Configuration.h>

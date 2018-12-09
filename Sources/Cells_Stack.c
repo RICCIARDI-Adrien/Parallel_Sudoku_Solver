@@ -1,5 +1,5 @@
 /** @file Cells_Stack.c
- * @see Cells_Stack.h for description.
+ * See Cells_Stack.h for description.
  * @author Adrien RICCIARDI
  */
 #include <Cells_Stack.h>

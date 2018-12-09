@@ -1,5 +1,5 @@
 /** @file Grid.c
- * @see Grid.h for description.
+ * See Grid.h for description.
  * @author Adrien RICCIARDI
  */
 #include <assert.h>
