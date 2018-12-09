@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 {
 	char *String_Grid_File_Name;
 	int Is_Grid_Solved, i;
-	time_t Starting_Time, Ending_Time;
+	time_t Starting_Time, Ending_Time, Seconds, Minutes, Hours;
 	
 	// Show the title
 	printf("+------------------------+\n");
@@ -180,7 +180,16 @@ int main(int argc, char *argv[])
 	// Show elapsed time
 	Ending_Time = time(NULL);
 	printf("Ended solving on %s", ctime(&Ending_Time));
-	// TODO elapsed time
+	// Compute elapsed time
+	printf("Elapsed time : ");
+	Seconds = Ending_Time - Starting_Time;
+	Minutes = Seconds / 60;
+	Hours = Minutes / 60;
+	Seconds -= Minutes * 60; // Adjust seconds, if less than 1 minute elapsed this subtracts 0
+	Minutes -= Hours * 60; // Adjust minutes, if less than 1 hour elapsed this subtracts 0
+	if (Hours > 0) printf("%ld hour(s) ", Hours);
+	if ((Minutes > 0) || (Hours > 0)) printf("%ld minute(s) ", Minutes); // Always display minutes if hours are displayed
+	printf("%ld second(s).\n\n", Seconds);
 	
 	// Show result
 	if (Is_Grid_Solved)
