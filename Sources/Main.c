@@ -6,6 +6,7 @@
 #include <Grid.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -111,6 +112,7 @@ int main(int argc, char *argv[])
 {
 	char *String_Grid_File_Name;
 	int Is_Grid_Solved, i;
+	time_t Starting_Time, Ending_Time;
 	
 	// Show the title
 	printf("+------------------------+\n");
@@ -161,15 +163,24 @@ int main(int argc, char *argv[])
 			break;
 	}
 	
-	// Show file name
-	printf("File : %s.\n\n", String_Grid_File_Name);
-	// Show grid
+	// Display information about the grid to solve
+	// Display file name
+	printf("File : %s.\n", String_Grid_File_Name);
+	// Display starting time
+	Starting_Time = time(NULL);
+	printf("Started solving on %s\n", ctime(&Starting_Time));
+	// Display grid
 	printf("Grid to solve :\n");
 	GridShow(&Grids[MAIN_THREAD_GRID_INDEX]);
 	putchar('\n');
 	
 	// Start solving
 	Is_Grid_Solved = MainManageWorkers();
+	
+	// Show elapsed time
+	Ending_Time = time(NULL);
+	printf("Ended solving on %s", ctime(&Ending_Time));
+	// TODO elapsed time
 	
 	// Show result
 	if (Is_Grid_Solved)
