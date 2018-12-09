@@ -22,20 +22,20 @@
 //-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
-/** Current grid side size in cells. */
-static unsigned int Grid_Size; // TODO useful ?
+/** Cache current grid side size in cells (it won't change during program execution). */
+static unsigned int Grid_Size;
 
 /** The grid starting number (usually 0 or 1) added to all cell values when the grid is displayed. */
 static int Grid_Display_Starting_Number;
 
-/** Horizontal dimension of a square in cells. */
-static unsigned int Grid_Square_Width; // TODO useful ?
-/** Vertical dimension of a square in cells. */
-static unsigned int Grid_Square_Height; // TODO useful ?
-/** How many squares in a row. */
-static unsigned int Grid_Squares_Horizontal_Count; // TODO useful ?
-/** How many squares in a column. */
-static unsigned int Grid_Squares_Vertical_Count; // TODO useful ?
+/** Cache horizontal dimension of a square in cells (it won't change during program execution). */
+static unsigned int Grid_Square_Width;
+/** Cache vertical dimension of a square in cells (it won't change during program execution). */
+static unsigned int Grid_Square_Height;
+/** Cache the amount of squares in a row (value won't change during program execution). */
+static unsigned int Grid_Squares_Horizontal_Count;
+/** Cache the amount of squares in a column (value won't change during program execution). */
+static unsigned int Grid_Squares_Vertical_Count;
 
 //-------------------------------------------------------------------------------------------------
 // Public variables
@@ -349,8 +349,8 @@ unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Ro
 	
 	// Check coordinates in debug mode
 	#if CONFIGURATION_IS_DEBUG_ENABLED
-		assert(Cell_Row < Pointer_Grid->Grid_Size);
-		assert(Cell_Column < Pointer_Grid->Grid_Size);
+		assert(Cell_Row < Grid_Size);
+		assert(Cell_Column < Grid_Size);
 	#endif
 	
 	// Nothing to do if the cell has a value yet
