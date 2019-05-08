@@ -2,6 +2,7 @@
  * See Cells_Stack.h for description.
  * @author Adrien RICCIARDI
  */
+#include <assert.h>
 #include <Cells_Stack.h>
 #include <Configuration.h>
 #include <stdio.h>
@@ -17,8 +18,8 @@
 	{
 		int i;
 		
-		printf("Count = %d\n", Pointer_Stack->Stack_Pointer);
-		for (i = Pointer_Stack->Stack_Pointer - 1; i >= 0; i--) printf("Row = %d, Column = %d\n", Pointer_Stack->Cells_Coordinates[i].Row, Pointer_Stack->Cells_Coordinates[i].Column);
+		printf("Count = %d\n", Pointer_Stack->Stack_Index);
+		for (i = Pointer_Stack->Stack_Index - 1; i >= 0; i--) printf("Row = %d, Column = %d\n", Pointer_Stack->Cells_Coordinates[i].Row, Pointer_Stack->Cells_Coordinates[i].Column);
 	}
 #endif
 
@@ -27,20 +28,21 @@
 //-------------------------------------------------------------------------------------------------
 void CellsStackInitialize(TCellsStack *Pointer_Stack)
 {
-	Pointer_Stack->Stack_Pointer = 0;
+	Pointer_Stack->Stack_Index = 0;
 }
 
 int CellsStackPush(TCellsStack *Pointer_Stack, int Cell_Row, int Cell_Column)
 {
 	TCellsStackCellCoordinates *Pointer_Cell_Coordinates;
 	
-	if (Pointer_Stack->Stack_Pointer >= CELLS_STACK_ELEMENTS_COUNT) return 0;
+	// Make sure the stack is not overflowing
+	assert(Pointer_Stack->Stack_Index < CELLS_STACK_ELEMENTS_COUNT);
 	
 	// Cache coordinates address
-	Pointer_Cell_Coordinates = &Pointer_Stack->Cells_Coordinates[Pointer_Stack->Stack_Pointer];
+	Pointer_Cell_Coordinates = &Pointer_Stack->Cells_Coordinates[Pointer_Stack->Stack_Index];
 	Pointer_Cell_Coordinates->Row = Cell_Row;
 	Pointer_Cell_Coordinates->Column = Cell_Column;
-	Pointer_Stack->Stack_Pointer++;
+	Pointer_Stack->Stack_Index++;
 	
 	#if CONFIGURATION_IS_DEBUG_ENABLED
 		printf("[%s] ", __FUNCTION__);
@@ -53,10 +55,11 @@ int CellsStackReadTop(TCellsStack *Pointer_Stack, int *Pointer_Cell_Row, int *Po
 {
 	TCellsStackCellCoordinates *Pointer_Cell_Coordinates;
 	
-	if (Pointer_Stack->Stack_Pointer <= 0) return 0;
+	// Can't use an assert here as this functions allows the caller to determine whether the stack is empty
+	if (Pointer_Stack->Stack_Index <= 0) return 0;
 	
 	// Cache coordinates address
-	Pointer_Cell_Coordinates = &Pointer_Stack->Cells_Coordinates[Pointer_Stack->Stack_Pointer - 1];
+	Pointer_Cell_Coordinates = &Pointer_Stack->Cells_Coordinates[Pointer_Stack->Stack_Index - 1];
 	*Pointer_Cell_Row = Pointer_Cell_Coordinates->Row;
 	*Pointer_Cell_Column = Pointer_Cell_Coordinates->Column;
 	
@@ -69,5 +72,6 @@ int CellsStackReadTop(TCellsStack *Pointer_Stack, int *Pointer_Cell_Row, int *Po
 
 void CellsStackRemoveTop(TCellsStack *Pointer_Stack)
 {
-	if (Pointer_Stack->Stack_Pointer > 0) Pointer_Stack->Stack_Pointer--;
+	// Make sure stack is not empty to avoid underflowing it
+	if (Pointer_Stack->Stack_Index > 0) Pointer_Stack->Stack_Index--;
 }

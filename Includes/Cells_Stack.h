@@ -27,7 +27,7 @@ typedef struct
 typedef struct
 {
 	TCellsStackCellCoordinates Cells_Coordinates[CELLS_STACK_ELEMENTS_COUNT]; //!< The stack content.
-	int Stack_Pointer; //!< The stack top. This is a fully ascending stack.
+	int Stack_Index; //!< The stack top. This is a fully ascending stack.
 } TCellsStack;
 
 //-------------------------------------------------------------------------------------------------
