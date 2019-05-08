@@ -413,7 +413,7 @@ int GridIsCorrectlyFilled(TGrid *Pointer_Grid)
 		for (Column = 0; Column < Grid_Size; Column++)
 		{
 			Number = Pointer_Grid->Cells[Row][Column];
-			if (Number == GRID_EMPTY_CELL_VALUE) continue; // Ignore empty cells
+			if (Number == GRID_EMPTY_CELL_VALUE) return 0; // Grid is not fully solved
 			if (Is_Number_Found[Number]) return 0; // The number is present more than one time
 			Is_Number_Found[Number] = 1;
 		}
@@ -429,7 +429,7 @@ int GridIsCorrectlyFilled(TGrid *Pointer_Grid)
 		for (Row = 0; Row < Grid_Size; Row++)
 		{
 			Number = Pointer_Grid->Cells[Row][Column];
-			if (Number == GRID_EMPTY_CELL_VALUE) continue; // Ignore empty cells
+			if (Number == GRID_EMPTY_CELL_VALUE) return 0; // Grid is not fully solved
 			if (Is_Number_Found[Number]) return 0; // The number is present more than one time
 			Is_Number_Found[Number] = 1;
 		}
@@ -455,7 +455,7 @@ int GridIsCorrectlyFilled(TGrid *Pointer_Grid)
 				for (Column = Column_Start; Column < Column_End; Column++)
 				{
 					Number = Pointer_Grid->Cells[Row][Column];
-					if (Number == GRID_EMPTY_CELL_VALUE) continue; // Ignore empty cells
+					if (Number == GRID_EMPTY_CELL_VALUE) return 0; // Grid is not fully solved
 					if (Is_Number_Found[Number]) return 0; // The number is present more than one time
 					Is_Number_Found[Number] = 1;
 				}

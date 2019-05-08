@@ -101,7 +101,7 @@ void GridRemoveCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, uns
  */
 void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Number);
 
-/** Tell if the grid is correctly filled (there is no bad at wrong position).
+/** Tell if the grid is correctly filled (i.e. all cells are filled and no value is at a wrong position).
  * @param Pointer_Grid The grid to check.
  * @return 0 if the grid is erroneously filled,
  * @return 1 if the grid is correctly filled.
