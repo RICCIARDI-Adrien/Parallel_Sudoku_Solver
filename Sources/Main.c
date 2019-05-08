@@ -143,10 +143,15 @@ int main(int argc, char *argv[])
 		printf("Error : maximum threads number must be a number greater than or equal to 1.\n");
 		return EXIT_FAILURE;
 	}
+	if (Main_Total_Allowed_Workers_Count > CONFIGURATION_WORKERS_MAXIMUM_COUNT)
+	{
+		printf("Warning : program allows up to %d parallel threads, provided value %d has been decreased to %d.\n", CONFIGURATION_WORKERS_MAXIMUM_COUNT, Main_Total_Allowed_Workers_Count, CONFIGURATION_WORKERS_MAXIMUM_COUNT);
+		Main_Total_Allowed_Workers_Count = CONFIGURATION_WORKERS_MAXIMUM_COUNT;
+	}
 	String_Grid_File_Name = argv[2];
 	
 	// Set all worker grids as available to use
-	for (i = 0; i < CONFIGURATION_WORKERS_MAXIMUM_COUNT; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
+	for (i = 0; i < Main_Total_Allowed_Workers_Count; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
 	
 	// Tell how many workers can be started at the same time
 	if (WorkerInitialize(Main_Total_Allowed_Workers_Count) != 0)
