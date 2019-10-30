@@ -153,12 +153,8 @@ int main(int argc, char *argv[])
 	// Set all worker grids as available to use
 	for (i = 0; i < Main_Total_Allowed_Workers_Count; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
 	
-	// Tell how many workers can be started at the same time
-	if (WorkerInitialize(Main_Total_Allowed_Workers_Count) != 0)
-	{
-		printf("Error : failed to initialize worker module.\n");
-		return EXIT_FAILURE;
-	}
+	// Create all workers
+	if (WorkerInitialize(Main_Total_Allowed_Workers_Count) != 0) return EXIT_FAILURE;
 	atexit(MainExit); // Automatically release the worker resources when the program exits
 	
 	// Try to load the grid file

@@ -139,12 +139,20 @@ int WorkerInitialize(int Maximum_Workers_Count)
 	int i;
 	
 	// Create the atomic counter
-	if (sem_init(&Worker_Semaphore_Available_Workers_Count, 0, Maximum_Workers_Count) != 0) return -1;
+	if (sem_init(&Worker_Semaphore_Available_Workers_Count, 0, Maximum_Workers_Count) != 0)
+	{
+		printf("Error : failed to create the workers semaphore.\n");
+		return -1;
+	}
 	
 	// Create all threads
 	for (i = 0; i < Maximum_Workers_Count; i++)
 	{
-		if (pthread_create(&Worker_Thread_IDs[i], NULL, WorkerThreadFunction, &Grids[i]) != 0) return -1;
+		if (pthread_create(&Worker_Thread_IDs[i], NULL, WorkerThreadFunction, &Grids[i]) != 0)
+		{
+			printf("Error : failed to create worker thread %d.\n", i);
+			return -1;
+		}
 	}
 
 	return 0;

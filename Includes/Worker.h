@@ -14,6 +14,7 @@
  * @param Maximum_Workers_Count How many threads can be started at the same time.
  * @return 0 on success,
  * @return -1 if an error occurred.
+ * @note This function prints an error message if an error occurs.
  */
 int WorkerInitialize(int Maximum_Workers_Count);
 
