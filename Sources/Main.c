@@ -93,6 +93,7 @@ static int MainManageWorkers(void)
 	}
 	
 	// There is no more job to provide to workers, wait for a result
+	WorkerStopIdleTasks(); // Tell useless workers to shut down to avoid wasting cycles
 	do
 	{
 		// Search for a solved grid

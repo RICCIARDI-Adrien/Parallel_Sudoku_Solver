@@ -29,6 +29,9 @@ static sem_t Worker_Semaphore_Available_Workers_Count;
 /** All worker thread IDs. */
 static pthread_t Worker_Thread_IDs[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 
+/** Tell whether non-busy threads must exit. */
+static int Worker_Is_Idle_Task_Stopped = 0;
+
 //-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
@@ -111,7 +114,16 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 		#endif
 		
 		// Doing a busy loop consumes 100% CPU but allows the thread to start as soon as possible
-		while (Pointer_Grid->State != GRID_STATE_BUSY);
+		while (Pointer_Grid->State != GRID_STATE_BUSY)
+		{
+			if (Worker_Is_Idle_Task_Stopped)
+			{
+				#if CONFIGURATION_IS_DEBUG_ENABLED
+					printf("[%s (TID %d)] Idle worker exited.\n", __FUNCTION__, Thread_PID);
+				#endif
+				return NULL;
+			}
+		}
 		
 		#if CONFIGURATION_IS_DEBUG_ENABLED
 			printf("[%s (TID %d)] Grid to solve :\n", __FUNCTION__, Thread_PID);
@@ -175,4 +187,9 @@ void WorkerWaitForAvailableWorker(void)
 	#if CONFIGURATION_IS_DEBUG_ENABLED
 		printf("[%s] A worker is available.\n", __FUNCTION__);
 	#endif
+}
+
+void WorkerStopIdleTasks(void)
+{
+	Worker_Is_Idle_Task_Stopped = 1;
 }

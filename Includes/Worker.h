@@ -27,4 +27,7 @@ void WorkerSolve(TGrid *Pointer_Grid);
 /** Block if no more worker is available. The function immediately returns if one or more workers are available to give them a grid to solve. */
 void WorkerWaitForAvailableWorker(void);
 
+/** Tell workers that no more tasks will be started, so unemployed workers can retire. */
+void WorkerStopIdleTasks(void);
+
 #endif
