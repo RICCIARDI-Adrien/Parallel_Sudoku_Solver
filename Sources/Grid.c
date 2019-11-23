@@ -348,10 +348,8 @@ unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Ro
 	unsigned int Bitmask_Missing_Numbers, Square_Index;
 	
 	// Check coordinates in debug mode
-	#if CONFIGURATION_IS_DEBUG_ENABLED
-		assert(Cell_Row < Grid_Size);
-		assert(Cell_Column < Grid_Size);
-	#endif
+	assert(Cell_Row < Grid_Size);
+	assert(Cell_Column < Grid_Size);
 	
 	// Nothing to do if the cell has a value yet
 	if (Pointer_Grid->Cells[Cell_Row][Cell_Column] != GRID_EMPTY_CELL_VALUE) return 0;
@@ -367,10 +365,9 @@ unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Ro
 void GridSetCellValue(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Cell_Value)
 {
 	// Check coordinates in debug mode
-	#if CONFIGURATION_IS_DEBUG_ENABLED
-		assert(Cell_Row < Grid_Size);
-		assert(Cell_Column < Grid_Size);
-	#endif
+	assert(Cell_Row < Grid_Size);
+	assert(Cell_Column < Grid_Size);
+
 	Pointer_Grid->Cells[Cell_Row][Cell_Column] = Cell_Value;
 }
 
