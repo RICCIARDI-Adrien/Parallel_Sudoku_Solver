@@ -7,7 +7,6 @@
 
 #include <Cells_Stack.h>
 #include <Configuration.h>
-#include <pthread.h>
 
 //-------------------------------------------------------------------------------------------------
 // Constants
