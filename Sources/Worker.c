@@ -19,11 +19,6 @@
 /** Enable or disable this module debug messages. */
 #define WORKER_IS_DEBUG_ENABLED 0
 
-// Ignore "misleading-indentation" warning that triggers when compiling in debug mode
-#if CONFIGURATION_IS_DEBUG_ENABLED
-	#pragma GCC diagnostic ignored "-Wmisleading-indentation"
-#endif
-
 //-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
@@ -47,7 +42,6 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 {
 	int Row, Column;
 	unsigned int Bitmask_Missing_Numbers, Tested_Number;
-	char String_Bitmask[2 * CONFIGURATION_GRID_MAXIMUM_SIZE]; // Using 2*CONFIGURATION_GRID_MAXIMUM_SIZE size grants enough space for the extra characters
 	
 	// Find the first empty cell (don't remove the stack top now as the backtrack can return soon if no available number is found)
 	if (CellsStackReadTop(&Pointer_Grid->Empty_Cells_Stack, &Row, &Column) == 0)
@@ -56,9 +50,6 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 		if (GridIsCorrectlyFilled(Pointer_Grid)) return 1;
 		
 		// A bad grid was generated...
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] Bad grid generated !\n", __FUNCTION__);
-		#endif
 		return 0;
 	}
 	
@@ -66,11 +57,6 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 	Bitmask_Missing_Numbers = GridGetCellMissingNumbers(Pointer_Grid, Row, Column);
 	// If no number is available a bad grid has been generated... It's safe to return here as the top of the stack has not been altered
 	if (Bitmask_Missing_Numbers == 0) return 0;
-	
-	#if WORKER_IS_DEBUG_ENABLED
-		GridConvertBitmaskToString(Bitmask_Missing_Numbers, String_Bitmask);
-		LOG(1, "Available numbers for (row %d ; column %d) : %s\n", Row, Column, String_Bitmask);
-	#endif
 	
 	// Try each available number
 	for (Tested_Number = 0; Tested_Number < Pointer_Grid->Grid_Size; Tested_Number++)
@@ -103,35 +89,30 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 {
 	int Is_Grid_Solved;
 	TGrid *Pointer_Grid = Pointer_Grid_To_Solve;
-	#if CONFIGURATION_IS_DEBUG_ENABLED
-		pid_t Thread_PID;
-	#endif
-		
-	#if CONFIGURATION_IS_DEBUG_ENABLED
+	pid_t Thread_PID = 0;
+	
+	#if WORKER_IS_DEBUG_ENABLED
 		Thread_PID = syscall(SYS_gettid);
 	#endif
 	
 	// Threads do not gracefully terminate, they stop when program exits (this avoids checking for a lot of conditions or changing thread cancellation state)
 	while (1)
 	{
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s (TID %d)] Waiting for grid to solve...\n", __FUNCTION__, Thread_PID);
-		#endif
+		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Thread_PID);
 		
 		// Doing a busy loop consumes 100% CPU but allows the thread to start as soon as possible
 		while (Pointer_Grid->State != GRID_STATE_BUSY)
 		{
 			if (Worker_Is_Idle_Task_Stopped)
 			{
-				#if CONFIGURATION_IS_DEBUG_ENABLED
-					printf("[%s (TID %d)] Idle worker exited.\n", __FUNCTION__, Thread_PID);
-				#endif
+				LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Idle worker exited.\n", Thread_PID);
 				return NULL;
 			}
 		}
 		
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s (TID %d)] Grid to solve :\n", __FUNCTION__, Thread_PID);
+		// TODO fix this debug message, it is not thread-safe
+		#if WORKER_IS_DEBUG_ENABLED
+			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid :\n", Thread_PID);
 			GridShow(Pointer_Grid);
 			putchar('\n');
 		#endif
@@ -139,7 +120,11 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 		// Start solving
 		Is_Grid_Solved = WorkerSolveGrid(Pointer_Grid);
 		if (Is_Grid_Solved) Pointer_Grid->State = GRID_STATE_SOLVING_SUCCESSED;
-		else Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
+		else
+		{
+			Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
+			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Bad grid generated, worker is available for a new job.\n", Thread_PID);
+		}
 		
 		// Tell that the worker is available for a new job
 		sem_post(&Worker_Semaphore_Available_Workers_Count); // Increment the atomic counter
@@ -189,9 +174,7 @@ void WorkerSolve(TGrid *Pointer_Grid)
 void WorkerWaitForAvailableWorker(void)
 {
 	sem_wait(&Worker_Semaphore_Available_Workers_Count); // Decrement the atomic counter
-	#if CONFIGURATION_IS_DEBUG_ENABLED
-		printf("[%s] A worker is available.\n", __FUNCTION__);
-	#endif
+	LOG(WORKER_IS_DEBUG_ENABLED, "A worker is available.\n");
 }
 
 void WorkerStopIdleTasks(void)
