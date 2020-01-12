@@ -12,7 +12,7 @@ SOURCES = $(shell find $(PATH_SOURCES) -iname "*.c")
 release: CCFLAGS += -Werror -O3 -fomit-frame-pointer -finline-functions-called-once -mtune=native -flto -DNDEBUG
 release: all
 
-debug: CCFLAGS += -g -O0 -DCONFIGURATION_IS_DEBUG_ENABLED=1
+debug: CCFLAGS += -g -O0
 debug: all
 
 all:
