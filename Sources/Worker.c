@@ -4,6 +4,7 @@
  */
 #include <Configuration.h>
 #include <Grid.h>
+#include <Log.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdio.h>
@@ -13,8 +14,11 @@
 #include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
-// Private macros
+// Private constants and macros
 //-------------------------------------------------------------------------------------------------
+/** Enable or disable this module debug messages. */
+#define WORKER_IS_DEBUG_ENABLED 0
+
 // Ignore "misleading-indentation" warning that triggers when compiling in debug mode
 #if CONFIGURATION_IS_DEBUG_ENABLED
 	#pragma GCC diagnostic ignored "-Wmisleading-indentation"
@@ -43,6 +47,7 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 {
 	int Row, Column;
 	unsigned int Bitmask_Missing_Numbers, Tested_Number;
+	char String_Bitmask[2 * CONFIGURATION_GRID_MAXIMUM_SIZE]; // Using 2*CONFIGURATION_GRID_MAXIMUM_SIZE size grants enough space for the extra characters
 	
 	// Find the first empty cell (don't remove the stack top now as the backtrack can return soon if no available number is found)
 	if (CellsStackReadTop(&Pointer_Grid->Empty_Cells_Stack, &Row, &Column) == 0)
@@ -62,9 +67,9 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 	// If no number is available a bad grid has been generated... It's safe to return here as the top of the stack has not been altered
 	if (Bitmask_Missing_Numbers == 0) return 0;
 	
-	#if CONFIGURATION_IS_DEBUG_ENABLED
-		printf("[%s] Available numbers for (row %d ; column %d) : ", __FUNCTION__, Row, Column);
-		GridShowBitmask(Bitmask_Missing_Numbers);
+	#if WORKER_IS_DEBUG_ENABLED
+		GridConvertBitmaskToString(Bitmask_Missing_Numbers, String_Bitmask);
+		LOG(1, "Available numbers for (row %d ; column %d) : %s\n", Row, Column, String_Bitmask);
 	#endif
 	
 	// Try each available number

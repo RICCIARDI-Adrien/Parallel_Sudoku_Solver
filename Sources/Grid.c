@@ -6,12 +6,16 @@
 #include <Cells_Stack.h>
 #include <Configuration.h>
 #include <Grid.h>
+#include <Log.h>
 #include <stdio.h>
 #include <string.h>
 
 //-------------------------------------------------------------------------------------------------
-// Private macros
+// Private constants and macros
 //-------------------------------------------------------------------------------------------------
+/** Enable or disable this module debug messages. */
+#define GRID_IS_DEBUG_ENABLED 0
+
 /** Get the square index (in the Bitmask_Squares array) in which the cell is located. The formula is Square_Row * Squares_Horizontal_Count + Square_Column.
  * @param Row Cell row coordinate.
  * @param Column Cell column coordinate.
@@ -220,9 +224,7 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 	if (Grid_Size > CONFIGURATION_GRID_MAXIMUM_SIZE)
 	{
 		fclose(Pointer_File);
-		#if CONFIGURATION_IS_DEBUG_ENABLED
-			printf("[%s] First line length is too long.\n", __FUNCTION__);
-		#endif
+		LOG(GRID_IS_DEBUG_ENABLED, "First line length is too long.\n");
 		return -2;
 	}
 	Pointer_Grid->Grid_Size = Grid_Size;
@@ -255,9 +257,7 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 			break;
 
 		default:
-			#if CONFIGURATION_IS_DEBUG_ENABLED
-				printf("[%s] Unrecognized grid size.\n", __FUNCTION__);
-			#endif
+			LOG(GRID_IS_DEBUG_ENABLED, "Unrecognized grid size.\n");
 			return -2;
 	}
 	
@@ -275,16 +275,12 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 			Temp = GridConvertCharacterToValue(String_Line[Column]);
 			if ((Temp != GRID_EMPTY_CELL_VALUE) && (Temp >= Grid_Size))
 			{
-				#if CONFIGURATION_IS_DEBUG_ENABLED
-					printf("[%s] The read character value (%d) is too big for the grid size.\n", __FUNCTION__, Temp);
-				#endif
+				LOG(GRID_IS_DEBUG_ENABLED, "The read character value (%d) is too big for the grid size.\n", Temp);
 				return -3;
 			}
 			if (Temp == (unsigned int) -1)
 			{
-				#if CONFIGURATION_IS_DEBUG_ENABLED
-					printf("[%s] A bad character was read.\n", __FUNCTION__);
-				#endif
+				LOG(GRID_IS_DEBUG_ENABLED, "A bad character was read.\n");
 				return -3;
 			}
 
@@ -297,9 +293,7 @@ int GridLoadFromFile(TGrid *Pointer_Grid, char *String_File_Name)
 			Temp = GridReadNextFileLine(Pointer_File, String_Line);
 			if (Temp != Grid_Size)
 			{
-				#if CONFIGURATION_IS_DEBUG_ENABLED
-					printf("[%s] The line %d has not the same length than the previous ones (%d).\n", __FUNCTION__, Row + 2, Temp); // +1 because the text editor starts displaying lines from 1, and +1 because the first line was already read (to get the grid size)
-				#endif
+				LOG(GRID_IS_DEBUG_ENABLED, "The line %d has not the same length than the previous ones (%d).\n", Row + 2, Temp); // +1 because the text editor starts displaying lines from 1, and +1 because the first line was already read (to get the grid size)
 				return -2;
 			}
 		}
@@ -462,25 +456,26 @@ int GridIsCorrectlyFilled(TGrid *Pointer_Grid)
 	return 1;
 }
 
-#if CONFIGURATION_IS_DEBUG_ENABLED
-	void GridShowBitmask(unsigned int Bitmask)
+void GridConvertBitmaskToString(unsigned int Bitmask, char *Pointer_Output_String)
+{
+	int i, j = 0;
+	
+	// Parse each bitmask bit and convert it to a character
+	for (i = Grid_Size - 1; i >= 0; i--)
 	{
-		int i, j = 0;
+		// Show '1' or '0' according to bit value
+		if (Bitmask & (1 << i)) *Pointer_Output_String = '1';
+		else *Pointer_Output_String = '0';
+		Pointer_Output_String++;
 		
-		for (i = Grid_Size; i >= 0 ; i--)
+		// Make 4-bit groups to ease reading
+		j++;
+		if (j == 4)
 		{
-			// Show '1' or '0' according to bit value
-			if (Bitmask & (1 << i)) putchar('1');
-			else putchar('0');
-				
-			// Make 4-bit groups to ease reading
-			j++;
-			if (j == 4)
-			{
-				putchar(' ');
-				j = 0;
-			}
+			*Pointer_Output_String = ' ';
+			Pointer_Output_String++;
+			j = 0;
 		}
-		printf("\n");
 	}
-#endif
+	*Pointer_Output_String = 0; // Terminate string
+}

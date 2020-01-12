@@ -107,9 +107,10 @@ void GridRestoreCellMissingNumber(TGrid *Pointer_Grid, unsigned int Cell_Row, un
  */
 int GridIsCorrectlyFilled(TGrid *Pointer_Grid);
 
-/** Show a bitmask in binary representation.
+/** Convert a bitmask to a displayable binary representation.
  * @param Bitmask The bitmask to visualize.
+ * @param Pointer_Output_String On output, contain the binary string. Make sure string has enough at least twice grid size room.
  */
-void GridShowBitmask(unsigned int Bitmask);
+void GridConvertBitmaskToString(unsigned int Bitmask, char *Pointer_Output_String);
 
 #endif
