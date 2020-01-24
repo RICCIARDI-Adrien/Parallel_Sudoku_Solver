@@ -1,5 +1,5 @@
 /** @file Log.c
- * See Log.hpp for description.
+ * See Log.h for description.
  * @author Adrien RICCIARDI
  */
 #include <Log.h>
