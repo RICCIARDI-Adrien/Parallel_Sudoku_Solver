@@ -2,51 +2,57 @@
 
 Processors_Count=$(cat /proc/cpuinfo | grep processor | wc -l)
 Program="../Parallel_Sudoku_Solver ${Processors_Count}"
+Result_File_Name="$1"
 
 # Start result file with useful system information
-if [ -n "$1" ]
+if [ -n "$Result_File_Name" ]
 then
-	printf "######################################################################\n" > "$1"
-	printf "# Test details                                                       #\n" >> "$1"
-	printf "######################################################################\n" >> "$1"
-	printf "Parallel Sudoku Solver version : $(git log --format=%H -1)\n" >> "$1"
-	printf "Starting date : $(date)\n\n" >> "$1"
+	printf "######################################################################\n" > "$Result_File_Name"
+	printf "# Test details                                                       #\n" >> "$Result_File_Name"
+	printf "######################################################################\n" >> "$Result_File_Name"
+	printf "Parallel Sudoku Solver version : $(git log --format=%H -1)\n" >> "$Result_File_Name"
+	printf "Starting date : $(date)\n\n" >> "$Result_File_Name"
 
-	printf "######################################################################\n" >> "$1"
-	printf "# Processor details                                                  #\n" >> "$1"
-	printf "######################################################################\n" >> "$1"
-	printf "Cores count : ${Processors_Count}\n\n" >> "$1"
-	printf "$(cat /proc/cpuinfo)\n\n" >> "$1"
+	printf "######################################################################\n" >> "$Result_File_Name"
+	printf "# Processor details                                                  #\n" >> "$Result_File_Name"
+	printf "######################################################################\n" >> "$Result_File_Name"
+	printf "Cores count : ${Processors_Count}\n\n" >> "$Result_File_Name"
+	printf "$(cat /proc/cpuinfo)\n\n" >> "$Result_File_Name"
 
-	printf "######################################################################\n" >> "$1"
-	printf "# System details                                                     #\n" >> "$1"
-	printf "######################################################################\n" >> "$1"
-	printf "$(lsb_release -a)\n" >> "$1"
+	printf "######################################################################\n" >> "$Result_File_Name"
+	printf "# System details                                                     #\n" >> "$Result_File_Name"
+	printf "######################################################################\n" >> "$Result_File_Name"
+	printf "$(lsb_release -a)\n\n" >> "$Result_File_Name"
+
+	printf "######################################################################\n" >> "$Result_File_Name"
+	printf "# Starting tests                                                     #\n" >> "$Result_File_Name"
+	printf "######################################################################\n" >> "$Result_File_Name"
 fi
-
-function PrintFailure
-{
-	echo -e "\033[31m!!!!!!!!!!!!!"
-	echo -e "!! FAILURE !!"
-	echo -e "!!!!!!!!!!!!!\033[0m"
-}
-
-function PrintSuccess
-{
-	echo -e "\033[32m#########################################"
-	echo -e "## SUCCESS : all tests were successful ##"
-	echo -e "#########################################\033[0m"
-}
 
 function SolveList
 {
 	for File in $Files_List
 	do
-		$Program $File
-		if [ $? != 0 ]
+		# Append test result to result file if present
+		if [ -n "$Result_File_Name" ]
 		then
-			PrintFailure
-			exit
+			$Program $File >> "$Result_File_Name"
+			if [ $? != 0 ]
+			then
+				printf "!!!!!!!!!!!!!\n" >> "$Result_File_Name"
+				printf "!! FAILURE !!\n" >> "$Result_File_Name"
+				printf "!!!!!!!!!!!!!\n" >> "$Result_File_Name"
+				exit
+			fi
+		else
+			$Program $File
+			if [ $? != 0 ]
+			then
+				printf "\033[31m!!!!!!!!!!!!!\n"
+				printf "!! FAILURE !!\n"
+				printf "!!!!!!!!!!!!!\033[0m\n"
+				exit
+			fi
 		fi
 	done
 }
@@ -67,4 +73,13 @@ SolveList
 Files_List=`find 16x16_*.txt`
 SolveList
 
-PrintSuccess
+if [ -n "$Result_File_Name" ]
+then
+	printf "#########################################\n" >> "$Result_File_Name"
+	printf "## SUCCESS : all tests were successful ##\n" >> "$Result_File_Name"
+	printf "#########################################\n" >> "$Result_File_Name"
+else
+	printf "\033[32m#########################################\n"
+	printf "## SUCCESS : all tests were successful ##\n"
+	printf "#########################################\033[0m\n"
+fi
