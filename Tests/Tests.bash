@@ -1,7 +1,28 @@
 #!/bin/bash
-export TIME="Time=%es Memory=%MkB"
+
 Processors_Count=$(cat /proc/cpuinfo | grep processor | wc -l)
-Program="time ../Parallel_Sudoku_Solver ${Processors_Count}"
+Program="../Parallel_Sudoku_Solver ${Processors_Count}"
+
+# Start result file with useful system information
+if [ -n "$1" ]
+then
+	printf "######################################################################\n" > "$1"
+	printf "# Test details                                                       #\n" >> "$1"
+	printf "######################################################################\n" >> "$1"
+	printf "Parallel Sudoku Solver version : $(git log --format=%H -1)\n" >> "$1"
+	printf "Starting date : $(date)\n\n" >> "$1"
+
+	printf "######################################################################\n" >> "$1"
+	printf "# Processor details                                                  #\n" >> "$1"
+	printf "######################################################################\n" >> "$1"
+	printf "Cores count : ${Processors_Count}\n\n" >> "$1"
+	printf "$(cat /proc/cpuinfo)\n\n" >> "$1"
+
+	printf "######################################################################\n" >> "$1"
+	printf "# System details                                                     #\n" >> "$1"
+	printf "######################################################################\n" >> "$1"
+	printf "$(lsb_release -a)\n" >> "$1"
+fi
 
 function PrintFailure
 {
