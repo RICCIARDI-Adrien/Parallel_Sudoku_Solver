@@ -8,6 +8,15 @@
 #include <Grid.h>
 
 //-------------------------------------------------------------------------------------------------
+// Types
+//-------------------------------------------------------------------------------------------------
+/** A worker is a thread that tries to solve the grid provided to it. */
+typedef struct
+{
+	TGrid Grid; //!< The grid the worker must solve.
+} TWorker;
+
+//-------------------------------------------------------------------------------------------------
 // Functions
 //-------------------------------------------------------------------------------------------------
 /** Tell the worker subsystem how many threads can be started simultaneously.

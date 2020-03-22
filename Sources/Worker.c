@@ -2,6 +2,7 @@
  * See Worker.h for description.
  * @author Adrien RICCIARDI
  */
+#include <assert.h>
 #include <Configuration.h>
 #include <Grid.h>
 #include <Log.h>
@@ -30,6 +31,13 @@ static pthread_t Worker_Thread_IDs[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 
 /** Tell whether non-busy threads must exit. */
 static int Worker_Is_Idle_Task_Stopped = 0;
+
+/** The worker stack content. */
+static TWorker *Pointer_Worker_Stack[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
+/** Worker stack index. Stack starts from 0 and grows. */
+static int Worker_Stack_Index = 0;
+/** Allow to atomically access to the stack from worker threads. */
+static pthread_mutex_t Worker_Stack_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -131,6 +139,44 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 	}
 	
 	return NULL;
+}
+
+/** Push a worker pointer to the workers stack top.
+ * Pointer_Worker The pointer that will become the stack top.
+ */
+static void WorkerStackPush(TWorker *Pointer_Worker)
+{
+	pthread_mutex_lock(&Worker_Stack_Mutex);
+	
+	// Make sure the stack is not overflowing
+	assert(Worker_Stack_Index < CONFIGURATION_WORKERS_MAXIMUM_COUNT);
+	
+	// Push value
+	Pointer_Worker_Stack[Worker_Stack_Index] = Pointer_Worker;
+	Worker_Stack_Index++;
+	
+	pthread_mutex_unlock(&Worker_Stack_Mutex);
+}
+
+/** Pop the top of the worker stack.
+ * @return The worker that was on stack's top.
+ */
+static TWorker *WorkerStackPop(void)
+{
+	TWorker *Pointer_Worker;
+	
+	pthread_mutex_lock(&Worker_Stack_Mutex);
+	
+	// Make sure the stack is not underflowing
+	assert(Worker_Stack_Index > 0);
+	
+	// Pop top value
+	Worker_Stack_Index--;
+	Pointer_Worker = Pointer_Worker_Stack[Worker_Stack_Index];
+	
+	pthread_mutex_unlock(&Worker_Stack_Mutex);
+	
+	return Pointer_Worker;
 }
 
 //-------------------------------------------------------------------------------------------------
