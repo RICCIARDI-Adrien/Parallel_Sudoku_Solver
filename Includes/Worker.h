@@ -7,6 +7,7 @@
 
 #include <Configuration.h> // TEST
 #include <Grid.h>
+#include <pthread.h>
 
 //-------------------------------------------------------------------------------------------------
 // Types
@@ -15,6 +16,8 @@
 typedef struct
 {
 	TGrid Grid; //!< The grid the worker must solve.
+	pthread_cond_t Wait_Condition; //!< Idle the worker thread until a job is received.
+	pthread_mutex_t Mutex_Wait_Condition; //!< The mutex granting atomic access to the wait condition.
 } TWorker;
 
 // TEST
@@ -34,8 +37,10 @@ int WorkerInitialize(int Maximum_Workers_Count);
 /** Release worker resources. */
 void WorkerUninitialize(void);
 
-/** Start solving the provided grid. */
-void WorkerSolve(TGrid *Pointer_Grid);
+/** Tell the specified worker to start solving its grid.
+ * @param Pointer_Worker The worker that must start its job.
+ */
+void WorkerSolve(TWorker *Pointer_Worker);
 
 /** Block if no more worker is available. The function immediately returns if one or more workers are available to give them a grid to solve. */
 void WorkerWaitForAvailableWorker(void);

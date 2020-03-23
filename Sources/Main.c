@@ -75,7 +75,7 @@ static int MainManageWorkers(void)
 					{
 						// Fill the grid with the new one to solve
 						GridCopy(&Main_Grid, &Workers[i].Grid);
-						WorkerSolve(&Workers[i].Grid);
+						WorkerSolve(&Workers[i]);
 						break;
 					}
 				}

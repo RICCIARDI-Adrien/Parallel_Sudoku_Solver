@@ -4,11 +4,13 @@
  */
 #include <assert.h>
 #include <Configuration.h>
+#include <errno.h>
 #include <Grid.h>
 #include <Log.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -106,26 +108,21 @@ static void *WorkerThreadFunction(void *Pointer_Argument)
 	// Threads do not gracefully terminate, they stop when program exits (this avoids checking for a lot of conditions or changing thread cancellation state)
 	while (1)
 	{
+		// Wait for a grid to solve
 		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Thread_PID);
+		pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+		pthread_cond_wait(&Pointer_Worker->Wait_Condition, &Pointer_Worker->Mutex_Wait_Condition);
+		pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 		
-		// Doing a busy loop consumes 100% CPU but allows the thread to start as soon as possible
-		while (Pointer_Worker->Grid.State != GRID_STATE_BUSY)
+		// TODO remove to use a specific function per worker instead of a global one
+		if (Worker_Is_Idle_Task_Stopped)
 		{
-			if (Worker_Is_Idle_Task_Stopped)
-			{
-				LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Idle worker exited.\n", Thread_PID);
-				return NULL;
-			}
+			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Idle worker exited.\n", Thread_PID);
+			return NULL;
 		}
 		
-		// TODO fix this debug message, it is not thread-safe
-		#if WORKER_IS_DEBUG_ENABLED
-			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid :\n", Thread_PID);
-			GridShow(&Pointer_Worker->Grid);
-			putchar('\n');
-		#endif
-		
 		// Start solving
+		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid.\n", Thread_PID);
 		Is_Grid_Solved = WorkerSolveGrid(&Pointer_Worker->Grid);
 		if (Is_Grid_Solved) Pointer_Worker->Grid.State = GRID_STATE_SOLVING_SUCCESSED;
 		else
@@ -200,10 +197,24 @@ int WorkerInitialize(int Maximum_Workers_Count)
 		// Set worker grid as available to use
 		Workers[i].Grid.State = GRID_STATE_SOLVING_FAILED; // TODO remove later ?
 		
+		// Create wait condition mutex first because thread callback will use it
+		if (pthread_mutex_init(&Workers[i].Mutex_Wait_Condition, NULL) != 0)
+		{
+			printf("[%s] Error : failed to create worker %d wait condition mutex (%s).\n", __FUNCTION__, i, strerror(errno));
+			return -1;
+		}
+		
+		// Create wait condition first because thread callback will use it
+		if (pthread_cond_init(&Workers[i].Wait_Condition, NULL) != 0)
+		{
+			printf("[%s] Error : failed to create worker %d wait condition (%s).\n", __FUNCTION__, i, strerror(errno));
+			return -1;
+		}
+		
 		// Create thread
 		if (pthread_create(&Thread_ID, NULL, WorkerThreadFunction, &Workers[i]) != 0) // Thread ID is not needed, so do not keep it
 		{
-			printf("[%s] Error : failed to create worker thread %d.\n", __FUNCTION__, i);
+			printf("[%s] Error : failed to create worker thread %d. (%s)\n", __FUNCTION__, i, strerror(errno));
 			return -1;
 		}
 		
@@ -220,9 +231,15 @@ void WorkerUninitialize(void)
 	sem_destroy(&Worker_Semaphore_Available_Workers_Count);
 }
 
-void WorkerSolve(TGrid *Pointer_Grid)
+void WorkerSolve(TWorker *Pointer_Worker)
 {
-	Pointer_Grid->State = GRID_STATE_BUSY;
+	// TODO clear boolean Is_Grid_Solved
+	Pointer_Worker->Grid.State = GRID_STATE_BUSY; // TODO remove later
+	
+	// Wake thread up
+	pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+	pthread_cond_signal(&Pointer_Worker->Wait_Condition);
+	pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 }
 
 void WorkerWaitForAvailableWorker(void)
