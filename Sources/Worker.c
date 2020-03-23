@@ -28,11 +28,8 @@
 /** Use a semaphore to count how many available workers remain. */
 static sem_t Worker_Semaphore_Available_Workers_Count;
 
-/** Tell whether non-busy threads must exit. */
-static int Worker_Is_Idle_Task_Stopped = 0;
-
 /** All workers data. */
-/*static*/ TWorker Workers[CONFIGURATION_WORKERS_MAXIMUM_COUNT]; // TEST
+static TWorker Workers[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 
 /** The worker stack content. */
 static TWorker *Pointer_Worker_Stack[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
@@ -44,6 +41,44 @@ static pthread_mutex_t Worker_Stack_Mutex = PTHREAD_MUTEX_INITIALIZER;
 //-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
+/** Push a worker pointer to the workers stack top.
+ * @param Pointer_Worker The pointer that will become the stack top.
+ */
+static void WorkerStackPush(TWorker *Pointer_Worker)
+{
+	pthread_mutex_lock(&Worker_Stack_Mutex);
+	
+	// Make sure the stack is not overflowing
+	assert(Worker_Stack_Index < CONFIGURATION_WORKERS_MAXIMUM_COUNT);
+	
+	// Push value
+	Pointer_Worker_Stack[Worker_Stack_Index] = Pointer_Worker;
+	Worker_Stack_Index++;
+	
+	pthread_mutex_unlock(&Worker_Stack_Mutex);
+}
+
+/** Pop the top of the worker stack.
+ * @return The worker that was on stack's top.
+ */
+static TWorker *WorkerStackPop(void)
+{
+	TWorker *Pointer_Worker;
+	
+	pthread_mutex_lock(&Worker_Stack_Mutex);
+	
+	// Make sure the stack is not underflowing
+	assert(Worker_Stack_Index > 0);
+	
+	// Pop top value
+	Worker_Stack_Index--;
+	Pointer_Worker = Pointer_Worker_Stack[Worker_Stack_Index];
+	
+	pthread_mutex_unlock(&Worker_Stack_Mutex);
+	
+	return Pointer_Worker;
+}
+
 /** Solve a grid using the backtrack algorithm.
  * @return 0 if the grid could not be solved,
  * @return 1 if the grid was successfully solved.
@@ -99,81 +134,48 @@ static void *WorkerThreadFunction(void *Pointer_Argument)
 {
 	int Is_Grid_Solved;
 	TWorker *Pointer_Worker = Pointer_Argument;
-	pid_t Thread_PID = 0;
 	
-	#if WORKER_IS_DEBUG_ENABLED
-		Thread_PID = syscall(SYS_gettid);
-	#endif
+	// Retrieve TID
+	Pointer_Worker->Thread_ID = syscall(SYS_gettid);
+	
+	// Add worker to "ready" stack
+	WorkerStackPush(Pointer_Worker);
 	
 	// Threads do not gracefully terminate, they stop when program exits (this avoids checking for a lot of conditions or changing thread cancellation state)
 	while (1)
 	{
-		// Wait for a grid to solve
-		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Thread_PID);
-		pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
-		pthread_cond_wait(&Pointer_Worker->Wait_Condition, &Pointer_Worker->Mutex_Wait_Condition);
-		pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
-		
-		// TODO remove to use a specific function per worker instead of a global one
-		if (Worker_Is_Idle_Task_Stopped)
+		// Wait for a grid to solve only if thread is not scheduled for termination (this could occur if thread is busy, trying to solve its grid, when it receives wait condition signal : thread misses wait condition signal and waits indefinitely)
+		if (!Pointer_Worker->Is_Exit_Requested)
 		{
-			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Idle worker exited.\n", Thread_PID);
+			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Pointer_Worker->Thread_ID);
+			pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+			pthread_cond_wait(&Pointer_Worker->Wait_Condition, &Pointer_Worker->Mutex_Wait_Condition);
+			pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
+		}
+		
+		// Should the thread terminate ?
+		if (Pointer_Worker->Is_Exit_Requested)
+		{
+			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Worker exited as requested.\n", Pointer_Worker->Thread_ID);
 			return NULL;
 		}
 		
 		// Start solving
-		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid.\n", Thread_PID);
+		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid.\n", Pointer_Worker->Thread_ID);
 		Is_Grid_Solved = WorkerSolveGrid(&Pointer_Worker->Grid);
 		if (Is_Grid_Solved) Pointer_Worker->Grid.State = GRID_STATE_SOLVING_SUCCESSED;
 		else
 		{
 			Pointer_Worker->Grid.State = GRID_STATE_SOLVING_FAILED;
-			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Bad grid generated, worker is available for a new job.\n", Thread_PID);
+			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Bad grid generated, worker is available for a new job.\n", Pointer_Worker->Thread_ID);
 		}
 		
 		// Tell that the worker is available for a new job
+		WorkerStackPush(Pointer_Worker);
 		sem_post(&Worker_Semaphore_Available_Workers_Count); // Increment the atomic counter
 	}
 	
 	return NULL;
-}
-
-/** Push a worker pointer to the workers stack top.
- * Pointer_Worker The pointer that will become the stack top.
- */
-static void WorkerStackPush(TWorker *Pointer_Worker)
-{
-	pthread_mutex_lock(&Worker_Stack_Mutex);
-	
-	// Make sure the stack is not overflowing
-	assert(Worker_Stack_Index < CONFIGURATION_WORKERS_MAXIMUM_COUNT);
-	
-	// Push value
-	Pointer_Worker_Stack[Worker_Stack_Index] = Pointer_Worker;
-	Worker_Stack_Index++;
-	
-	pthread_mutex_unlock(&Worker_Stack_Mutex);
-}
-
-/** Pop the top of the worker stack.
- * @return The worker that was on stack's top.
- */
-static TWorker *WorkerStackPop(void)
-{
-	TWorker *Pointer_Worker;
-	
-	pthread_mutex_lock(&Worker_Stack_Mutex);
-	
-	// Make sure the stack is not underflowing
-	assert(Worker_Stack_Index > 0);
-	
-	// Pop top value
-	Worker_Stack_Index--;
-	Pointer_Worker = Pointer_Worker_Stack[Worker_Stack_Index];
-	
-	pthread_mutex_unlock(&Worker_Stack_Mutex);
-	
-	return Pointer_Worker;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -212,15 +214,16 @@ int WorkerInitialize(int Maximum_Workers_Count)
 		}
 		
 		// Create thread
+		Workers[i].Is_Exit_Requested = 0;
 		if (pthread_create(&Thread_ID, NULL, WorkerThreadFunction, &Workers[i]) != 0) // Thread ID is not needed, so do not keep it
 		{
 			printf("[%s] Error : failed to create worker thread %d. (%s)\n", __FUNCTION__, i, strerror(errno));
 			return -1;
 		}
-		
-		// Add worker to "ready" stack
-		WorkerStackPush(&Workers[i]);
 	}
+	
+	// Wait for all threads to become ready (each thread adds itself to workers stack when ready)
+	while (Worker_Stack_Index < Maximum_Workers_Count);
 
 	return 0;
 }
@@ -242,13 +245,33 @@ void WorkerSolve(TWorker *Pointer_Worker)
 	pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 }
 
-void WorkerWaitForAvailableWorker(void)
+int WorkerWaitForAvailableWorker(TWorker **Pointer_Pointer_Worker)
 {
+	TWorker *Pointer_Worker;
+	int Available_Workers;
+	
+	// Block until a worker is available
 	sem_wait(&Worker_Semaphore_Available_Workers_Count); // Decrement the atomic counter
-	LOG(WORKER_IS_DEBUG_ENABLED, "A worker is available.\n");
+	sem_getvalue(&Worker_Semaphore_Available_Workers_Count, &Available_Workers);
+	
+	// Retrieve first available worker
+	Pointer_Worker = WorkerStackPop();
+	*Pointer_Pointer_Worker = Pointer_Worker;
+	LOG(WORKER_IS_DEBUG_ENABLED, "A worker with TID %d is available (remaining available workers = %d, workers stack index = %d).\n", Pointer_Worker->Thread_ID, Available_Workers, Worker_Stack_Index);
+	
+	// Did this worker solve the grid ?
+	if (Pointer_Worker->Grid.State == GRID_STATE_SOLVING_SUCCESSED) return 1; // TODO use Pointer_Worker->Is_Grid_Solved
+	return 0;
 }
 
-void WorkerStopIdleTasks(void)
+void WorkerExit(TWorker *Pointer_Worker)
 {
-	Worker_Is_Idle_Task_Stopped = 1;
+	// Tell thread to exit (no need to remove worker from stack as it has been already popped by WorkerWaitForAvailableWorker())
+	LOG(WORKER_IS_DEBUG_ENABLED, "Telling thread with TID %d to exit.\n", Pointer_Worker->Thread_ID);
+	Pointer_Worker->Is_Exit_Requested = 1;
+	
+	// Wake thread up
+	pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+	pthread_cond_signal(&Pointer_Worker->Wait_Condition);
+	pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 }

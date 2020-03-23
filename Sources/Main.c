@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 #include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -35,7 +34,8 @@ static void MainExit(void)
 static int MainManageWorkers(void)
 {
 	unsigned int Row, Column, Bitmask_Missing_Numbers, Grid_Size, Tested_Number;
-	int i, Have_All_Workers_Failed;
+	int i;
+	TWorker *Pointer_Worker;
 	
 	// Cache grid size
 	Grid_Size = Main_Grid.Grid_Size;
@@ -58,26 +58,18 @@ static int MainManageWorkers(void)
 				// Provide this grid to a worker
 				GridSetCellValue(&Main_Grid, Row, Column, Tested_Number);
 				
-				// Find the first finished grid TODO optimize to avoid parsing all grids all the time
-				WorkerWaitForAvailableWorker();
-				
-				for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
+				// Find the first ready worker and assign it the grid
+				if (WorkerWaitForAvailableWorker(&Pointer_Worker) == 1)
 				{
-					// Grid has been solved, stop searching
-					if (Workers[i].Grid.State == GRID_STATE_SOLVING_SUCCESSED)
-					{
-						GridCopy(&Workers[i].Grid, &Main_Grid); // Keep the solved grid to avoid searching for it another time when the function terminates
-						return 1;
-					}
-					
-					// Is the grid available to start a new job ?
-					if (Workers[i].Grid.State == GRID_STATE_SOLVING_FAILED)
-					{
-						// Fill the grid with the new one to solve
-						GridCopy(&Main_Grid, &Workers[i].Grid);
-						WorkerSolve(&Workers[i]);
-						break;
-					}
+					// Keep the solved grid to avoid searching for it another time when the function terminates
+					GridCopy(&Pointer_Worker->Grid, &Main_Grid);
+					return 1;
+				}
+				else
+				{
+					// Provide the worker with the new grid to solve
+					GridCopy(&Main_Grid, &Pointer_Worker->Grid);
+					WorkerSolve(Pointer_Worker);
 				}
 			}
 			
@@ -87,27 +79,17 @@ static int MainManageWorkers(void)
 	}
 	
 	// There is no more job to provide to workers, wait for a result
-	WorkerStopIdleTasks(); // Tell useless workers to shut down to avoid wasting cycles
-	do
+	for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
 	{
-		// Search for a solved grid
-		Have_All_Workers_Failed = 1;
-		for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
+		if (WorkerWaitForAvailableWorker(&Pointer_Worker) == 1)
 		{
-			// Grid has been solved, stop searching
-			if (Workers[i].Grid.State == GRID_STATE_SOLVING_SUCCESSED)
-			{
-				GridCopy(&Workers[i].Grid, &Main_Grid); // Keep the solved grid to avoid searching for it another time when the function terminates
-				return 1;
-			}
-			
-			// Are some workers still searching ?
-			if (Workers[i].Grid.State == GRID_STATE_BUSY) Have_All_Workers_Failed = 0;
+			// Keep the solved grid to avoid searching for it another time when the function terminates
+			GridCopy(&Pointer_Worker->Grid, &Main_Grid);
+			return 1;
 		}
-		
-		// Avoid using 100% CPU
-		usleep(1000000);
-	} while (!Have_All_Workers_Failed);
+		// Shut worker down to avoid wasting cycles
+		else WorkerExit(Pointer_Worker);
+	}
 	
 	return 0;
 }

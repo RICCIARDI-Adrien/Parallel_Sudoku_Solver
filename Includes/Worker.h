@@ -5,7 +5,6 @@
 #ifndef H_WORKER_H
 #define H_WORKER_H
 
-#include <Configuration.h> // TEST
 #include <Grid.h>
 #include <pthread.h>
 
@@ -18,10 +17,9 @@ typedef struct
 	TGrid Grid; //!< The grid the worker must solve.
 	pthread_cond_t Wait_Condition; //!< Idle the worker thread until a job is received.
 	pthread_mutex_t Mutex_Wait_Condition; //!< The mutex granting atomic access to the wait condition.
+	int Is_Exit_Requested; //!< When set to 1, tell the worker thread to exit.
+	pid_t Thread_ID; //!< Allow to uniquely identify thread.
 } TWorker;
-
-// TEST
-extern TWorker Workers[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Functions
@@ -42,10 +40,16 @@ void WorkerUninitialize(void);
  */
 void WorkerSolve(TWorker *Pointer_Worker);
 
-/** Block if no more worker is available. The function immediately returns if one or more workers are available to give them a grid to solve. */
-void WorkerWaitForAvailableWorker(void);
+/** Block if no more worker is available. The function immediately returns if one or more workers are available to give them a grid to solve.
+ * @param Pointer_Pointer_Worker On output, contain a pointer on the worker that reported the event.
+ * @return 0 if this worker grid was not solved,
+ * @return 1 if this worker grid has been solved.
+ */
+int WorkerWaitForAvailableWorker(TWorker **Pointer_Pointer_Worker);
 
-/** Tell workers that no more tasks will be started, so unemployed workers can retire. */
-void WorkerStopIdleTasks(void);
+/** Tell a worker thread to quit.
+ * @param Pointer_Worker The worker that must terminate.
+ */
+void WorkerExit(TWorker *Pointer_Worker);
 
 #endif
