@@ -8,7 +8,7 @@
 //-------------------------------------------------------------------------------------------------
 // Constants and macros
 //-------------------------------------------------------------------------------------------------
-#define LOG(Is_Enabled, Format_String, ...) if (Is_Enabled) LogPrintMessage("[%s:%d] " Format_String, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define LOG(Is_Enabled, Format_String, ...) do { if (Is_Enabled) LogPrintMessage("[%s:%d] " Format_String, __FUNCTION__, __LINE__, ##__VA_ARGS__); } while (0)
 
 //-------------------------------------------------------------------------------------------------
 // Functions

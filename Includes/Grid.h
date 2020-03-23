@@ -17,14 +17,6 @@
 //-------------------------------------------------------------------------------------------------
 // Types
 //-------------------------------------------------------------------------------------------------
-/** All states a grid can be in. */
-typedef enum
-{
-	GRID_STATE_BUSY, //!< The grid is being solved, do not access its data until the solver has finished.
-	GRID_STATE_SOLVING_SUCCESSED, //!< The grid has been successfully solved.
-	GRID_STATE_SOLVING_FAILED //!< The grid can't be solved. It is now available to start a new solving.
-} TGridState;
-
 /** Contain all needed information to run the backtrack algorithm. */
 typedef struct
 {
@@ -34,7 +26,6 @@ typedef struct
 	unsigned int Allowed_Numbers_Bitmask_Columns[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each column (a bit is set when the number is allowed).
 	unsigned int Allowed_Numbers_Bitmask_Squares[CONFIGURATION_GRID_MAXIMUM_SIZE]; //!< Tell which numbers can be placed in each square (a bit is set when the number is allowed).
 	TCellsStack Empty_Cells_Stack; //!< Contain all grid empty cells to avoid loosing time searching for them.
-	volatile TGridState State; //!< In which state the grid is right now.
 } TGrid;
 
 //-------------------------------------------------------------------------------------------------

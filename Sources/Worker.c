@@ -34,7 +34,7 @@ static TWorker Workers[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 /** The worker stack content. */
 static TWorker *Pointer_Worker_Stack[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 /** Worker stack index. Stack starts from 0 and grows. */
-static int Worker_Stack_Index = 0;
+static volatile int Worker_Stack_Index = 0;
 /** Allow to atomically access to the stack from worker threads. */
 static pthread_mutex_t Worker_Stack_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -132,7 +132,6 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
  */
 static void *WorkerThreadFunction(void *Pointer_Argument)
 {
-	int Is_Grid_Solved;
 	TWorker *Pointer_Worker = Pointer_Argument;
 	
 	// Retrieve TID
@@ -162,13 +161,9 @@ static void *WorkerThreadFunction(void *Pointer_Argument)
 		
 		// Start solving
 		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid.\n", Pointer_Worker->Thread_ID);
-		Is_Grid_Solved = WorkerSolveGrid(&Pointer_Worker->Grid);
-		if (Is_Grid_Solved) Pointer_Worker->Grid.State = GRID_STATE_SOLVING_SUCCESSED;
-		else
-		{
-			Pointer_Worker->Grid.State = GRID_STATE_SOLVING_FAILED;
-			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Bad grid generated, worker is available for a new job.\n", Pointer_Worker->Thread_ID);
-		}
+		Pointer_Worker->Is_Grid_Solved = WorkerSolveGrid(&Pointer_Worker->Grid);
+		if (Pointer_Worker->Is_Grid_Solved) LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] A grid solution has been found.\n", Pointer_Worker->Thread_ID);
+		else LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Bad grid generated, worker is available for a new job.\n", Pointer_Worker->Thread_ID);
 		
 		// Tell that the worker is available for a new job
 		WorkerStackPush(Pointer_Worker);
@@ -196,9 +191,6 @@ int WorkerInitialize(int Maximum_Workers_Count)
 	// Create all workers
 	for (i = 0; i < Maximum_Workers_Count; i++)
 	{
-		// Set worker grid as available to use
-		Workers[i].Grid.State = GRID_STATE_SOLVING_FAILED; // TODO remove later ?
-		
 		// Create wait condition mutex first because thread callback will use it
 		if (pthread_mutex_init(&Workers[i].Mutex_Wait_Condition, NULL) != 0)
 		{
@@ -236,8 +228,8 @@ void WorkerUninitialize(void)
 
 void WorkerSolve(TWorker *Pointer_Worker)
 {
-	// TODO clear boolean Is_Grid_Solved
-	Pointer_Worker->Grid.State = GRID_STATE_BUSY; // TODO remove later
+	// No solution has been found yet
+	Pointer_Worker->Is_Grid_Solved = 0;
 	
 	// Wake thread up
 	pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
@@ -260,7 +252,7 @@ int WorkerWaitForAvailableWorker(TWorker **Pointer_Pointer_Worker)
 	LOG(WORKER_IS_DEBUG_ENABLED, "A worker with TID %d is available (remaining available workers = %d, workers stack index = %d).\n", Pointer_Worker->Thread_ID, Available_Workers, Worker_Stack_Index);
 	
 	// Did this worker solve the grid ?
-	if (Pointer_Worker->Grid.State == GRID_STATE_SOLVING_SUCCESSED) return 1; // TODO use Pointer_Worker->Is_Grid_Solved
+	if (Pointer_Worker->Is_Grid_Solved) return 1;
 	return 0;
 }
 
