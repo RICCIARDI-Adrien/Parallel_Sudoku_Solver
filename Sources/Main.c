@@ -11,19 +11,13 @@
 #include <Worker.h>
 
 //-------------------------------------------------------------------------------------------------
-// Private constants
-//-------------------------------------------------------------------------------------------------
-/** Main thread uses a specific grid. It is the last one to let the thread ID 0 use the grid ID 0 for more coherency. */
-#define MAIN_THREAD_GRID_INDEX CONFIGURATION_WORKERS_MAXIMUM_COUNT
-
-//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** How many threads to use to solve the sudoku. */
 static int Main_Total_Allowed_Workers_Count;
 
-/** Point to the solved grid when it has been found. */
-static TGrid *Pointer_Solved_Grid;
+/** Hold the grid to solve at the beginning of the program, hold the solved grid at the end. */
+static TGrid Main_Grid;
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -44,7 +38,7 @@ static int MainManageWorkers(void)
 	int i, Have_All_Workers_Failed;
 	
 	// Cache grid size
-	Grid_Size = Grids[MAIN_THREAD_GRID_INDEX].Grid_Size;
+	Grid_Size = Main_Grid.Grid_Size;
 	
 	// Walk across all cells to set the first empty one value, then provide it to a worker
 	for (Row = 0; Row < Grid_Size; Row++)
@@ -52,7 +46,7 @@ static int MainManageWorkers(void)
 		for (Column = 0; Column < Grid_Size; Column++)
 		{
 			// Is this cell empty ?
-			Bitmask_Missing_Numbers = GridGetCellMissingNumbers(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column);
+			Bitmask_Missing_Numbers = GridGetCellMissingNumbers(&Main_Grid, Row, Column);
 			if (Bitmask_Missing_Numbers == 0) continue; // The cell is not empty
 			
 			// Fill all available numbers
@@ -62,7 +56,7 @@ static int MainManageWorkers(void)
 				if (!(Bitmask_Missing_Numbers & (1 << Tested_Number))) continue;
 				
 				// Provide this grid to a worker
-				GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, Tested_Number);
+				GridSetCellValue(&Main_Grid, Row, Column, Tested_Number);
 				
 				// Find the first finished grid TODO optimize to avoid parsing all grids all the time
 				WorkerWaitForAvailableWorker();
@@ -70,25 +64,25 @@ static int MainManageWorkers(void)
 				for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
 				{
 					// Grid has been solved, stop searching
-					if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+					if (Workers[i].Grid.State == GRID_STATE_SOLVING_SUCCESSED)
 					{
-						Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
+						GridCopy(&Workers[i].Grid, &Main_Grid); // Keep the solved grid to avoid searching for it another time when the function terminates
 						return 1;
 					}
 					
 					// Is the grid available to start a new job ?
-					if (Grids[i].State == GRID_STATE_SOLVING_FAILED)
+					if (Workers[i].Grid.State == GRID_STATE_SOLVING_FAILED)
 					{
 						// Fill the grid with the new one to solve
-						GridCopy(&Grids[MAIN_THREAD_GRID_INDEX], &Grids[i]);
-						WorkerSolve(&Grids[i]);
+						GridCopy(&Main_Grid, &Workers[i].Grid);
+						WorkerSolve(&Workers[i].Grid);
 						break;
 					}
 				}
 			}
 			
 			// Restore empty cell, each worker must receive a grid with only one value altered
-			GridSetCellValue(&Grids[MAIN_THREAD_GRID_INDEX], Row, Column, GRID_EMPTY_CELL_VALUE);
+			GridSetCellValue(&Main_Grid, Row, Column, GRID_EMPTY_CELL_VALUE);
 		}
 	}
 	
@@ -101,14 +95,14 @@ static int MainManageWorkers(void)
 		for (i = 0; i < Main_Total_Allowed_Workers_Count; i++)
 		{
 			// Grid has been solved, stop searching
-			if (Grids[i].State == GRID_STATE_SOLVING_SUCCESSED)
+			if (Workers[i].Grid.State == GRID_STATE_SOLVING_SUCCESSED)
 			{
-				Pointer_Solved_Grid = &Grids[i]; // Cache the solved grid to avoid searching for it another time when the function terminates
+				GridCopy(&Workers[i].Grid, &Main_Grid); // Keep the solved grid to avoid searching for it another time when the function terminates
 				return 1;
 			}
 			
 			// Are some workers still searching ?
-			if (Grids[i].State == GRID_STATE_BUSY) Have_All_Workers_Failed = 0;
+			if (Workers[i].Grid.State == GRID_STATE_BUSY) Have_All_Workers_Failed = 0;
 		}
 		
 		// Avoid using 100% CPU
@@ -124,7 +118,7 @@ static int MainManageWorkers(void)
 int main(int argc, char *argv[])
 {
 	char *String_Grid_File_Name;
-	int Is_Grid_Solved, i;
+	int Is_Grid_Solved;
 	time_t Starting_Time, Ending_Time, Seconds, Minutes, Hours;
 	
 	// Show the title
@@ -151,15 +145,12 @@ int main(int argc, char *argv[])
 	}
 	String_Grid_File_Name = argv[2];
 	
-	// Set all worker grids as available to use
-	for (i = 0; i < Main_Total_Allowed_Workers_Count; i++) Grids[i].State = GRID_STATE_SOLVING_FAILED;
-	
 	// Create all workers
 	if (WorkerInitialize(Main_Total_Allowed_Workers_Count) != 0) return EXIT_FAILURE;
 	atexit(MainExit); // Automatically release the worker resources when the program exits
 	
 	// Try to load the grid file
-	switch (GridLoadFromFile(&Grids[MAIN_THREAD_GRID_INDEX], String_Grid_File_Name))
+	switch (GridLoadFromFile(&Main_Grid, String_Grid_File_Name))
 	{
 		case -1:
 			printf("Error : can't open file %s.\n", String_Grid_File_Name);
@@ -185,7 +176,7 @@ int main(int argc, char *argv[])
 	printf("Started solving on %s\n", ctime(&Starting_Time));
 	// Display grid
 	printf("Grid to solve :\n");
-	GridShow(&Grids[MAIN_THREAD_GRID_INDEX]);
+	GridShow(&Main_Grid);
 	putchar('\n');
 	
 	// Start solving
@@ -209,7 +200,7 @@ int main(int argc, char *argv[])
 	if (Is_Grid_Solved)
 	{
 		printf("Solved grid :\n");
-		GridShow(Pointer_Solved_Grid);
+		GridShow(&Main_Grid);
 		putchar('\n');
 		return EXIT_SUCCESS;
 	}

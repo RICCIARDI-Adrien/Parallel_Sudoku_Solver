@@ -5,6 +5,7 @@
 #ifndef H_WORKER_H
 #define H_WORKER_H
 
+#include <Configuration.h> // TEST
 #include <Grid.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -15,6 +16,9 @@ typedef struct
 {
 	TGrid Grid; //!< The grid the worker must solve.
 } TWorker;
+
+// TEST
+extern TWorker Workers[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Functions

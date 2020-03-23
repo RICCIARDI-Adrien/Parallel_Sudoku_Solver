@@ -26,11 +26,11 @@
 /** Use a semaphore to count how many available workers remain. */
 static sem_t Worker_Semaphore_Available_Workers_Count;
 
-/** All worker thread IDs. */
-static pthread_t Worker_Thread_IDs[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
-
 /** Tell whether non-busy threads must exit. */
 static int Worker_Is_Idle_Task_Stopped = 0;
+
+/** All workers data. */
+/*static*/ TWorker Workers[CONFIGURATION_WORKERS_MAXIMUM_COUNT]; // TEST
 
 /** The worker stack content. */
 static TWorker *Pointer_Worker_Stack[CONFIGURATION_WORKERS_MAXIMUM_COUNT];
@@ -90,13 +90,13 @@ static int WorkerSolveGrid(TGrid *Pointer_Grid)
 }
 
 /** The function executed by the thread.
- * @param Pointer_Grid_To_Solve The grid to solve.
+ * @param Pointer_Argument The worker owning this thread.
  * @return Unused value.
  */
-static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
+static void *WorkerThreadFunction(void *Pointer_Argument)
 {
 	int Is_Grid_Solved;
-	TGrid *Pointer_Grid = Pointer_Grid_To_Solve;
+	TWorker *Pointer_Worker = Pointer_Argument;
 	pid_t Thread_PID = 0;
 	
 	#if WORKER_IS_DEBUG_ENABLED
@@ -109,7 +109,7 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Thread_PID);
 		
 		// Doing a busy loop consumes 100% CPU but allows the thread to start as soon as possible
-		while (Pointer_Grid->State != GRID_STATE_BUSY)
+		while (Pointer_Worker->Grid.State != GRID_STATE_BUSY)
 		{
 			if (Worker_Is_Idle_Task_Stopped)
 			{
@@ -121,16 +121,16 @@ static void *WorkerThreadFunction(void *Pointer_Grid_To_Solve)
 		// TODO fix this debug message, it is not thread-safe
 		#if WORKER_IS_DEBUG_ENABLED
 			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Starting solving grid :\n", Thread_PID);
-			GridShow(Pointer_Grid);
+			GridShow(&Pointer_Worker->Grid);
 			putchar('\n');
 		#endif
 		
 		// Start solving
-		Is_Grid_Solved = WorkerSolveGrid(Pointer_Grid);
-		if (Is_Grid_Solved) Pointer_Grid->State = GRID_STATE_SOLVING_SUCCESSED;
+		Is_Grid_Solved = WorkerSolveGrid(&Pointer_Worker->Grid);
+		if (Is_Grid_Solved) Pointer_Worker->Grid.State = GRID_STATE_SOLVING_SUCCESSED;
 		else
 		{
-			Pointer_Grid->State = GRID_STATE_SOLVING_FAILED;
+			Pointer_Worker->Grid.State = GRID_STATE_SOLVING_FAILED;
 			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Bad grid generated, worker is available for a new job.\n", Thread_PID);
 		}
 		
@@ -185,6 +185,7 @@ static TWorker *WorkerStackPop(void)
 int WorkerInitialize(int Maximum_Workers_Count)
 {
 	int i;
+	pthread_t Thread_ID;
 	
 	// Create the atomic counter
 	if (sem_init(&Worker_Semaphore_Available_Workers_Count, 0, Maximum_Workers_Count) != 0)
@@ -193,14 +194,21 @@ int WorkerInitialize(int Maximum_Workers_Count)
 		return -1;
 	}
 	
-	// Create all threads
+	// Create all workers
 	for (i = 0; i < Maximum_Workers_Count; i++)
 	{
-		if (pthread_create(&Worker_Thread_IDs[i], NULL, WorkerThreadFunction, &Grids[i]) != 0)
+		// Set worker grid as available to use
+		Workers[i].Grid.State = GRID_STATE_SOLVING_FAILED; // TODO remove later ?
+		
+		// Create thread
+		if (pthread_create(&Thread_ID, NULL, WorkerThreadFunction, &Workers[i]) != 0) // Thread ID is not needed, so do not keep it
 		{
 			printf("[%s] Error : failed to create worker thread %d.\n", __FUNCTION__, i);
 			return -1;
 		}
+		
+		// Add worker to "ready" stack
+		WorkerStackPush(&Workers[i]);
 	}
 
 	return 0;
