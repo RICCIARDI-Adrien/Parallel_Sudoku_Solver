@@ -9,7 +9,7 @@ INCLUDES = -I$(PATH_INCLUDES)
 LIBRARIES = -pthread
 SOURCES = $(shell find $(PATH_SOURCES) -iname "*.c")
 
-release: CCFLAGS += -Werror -O3 -fomit-frame-pointer -finline-functions-called-once -mtune=native -flto -DNDEBUG
+release: CCFLAGS += -Werror -O3 -mtune=native -flto -DNDEBUG
 release: all
 
 debug: CCFLAGS += -g -O0
