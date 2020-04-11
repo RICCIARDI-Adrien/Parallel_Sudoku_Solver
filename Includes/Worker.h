@@ -16,6 +16,7 @@ typedef struct
 {
 	TGrid Grid; //!< The grid the worker must solve.
 	int Is_Grid_Solved; //!< Set to 1 when a grid solution has been found.
+	int Is_Waiting_Requested; //!< This is the wait condition boolean. Set to 0 to avoid entering the wait condition.
 	pthread_cond_t Wait_Condition; //!< Idle the worker thread until a job is received.
 	pthread_mutex_t Mutex_Wait_Condition; //!< The mutex granting atomic access to the wait condition.
 	int Is_Exit_Requested; //!< When set to 1, tell the worker thread to exit.

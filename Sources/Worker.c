@@ -143,14 +143,12 @@ static void *WorkerThreadFunction(void *Pointer_Argument)
 	// Threads do not gracefully terminate, they stop when program exits (this avoids checking for a lot of conditions or changing thread cancellation state)
 	while (1)
 	{
-		// Wait for a grid to solve only if thread is not scheduled for termination (this could occur if thread is busy, trying to solve its grid, when it receives wait condition signal : thread misses wait condition signal and waits indefinitely)
-		if (!Pointer_Worker->Is_Exit_Requested)
-		{
-			LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Pointer_Worker->Thread_ID);
-			pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
-			pthread_cond_wait(&Pointer_Worker->Wait_Condition, &Pointer_Worker->Mutex_Wait_Condition);
-			pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
-		}
+		// Wait for a grid to solve or for an exit request
+		LOG(WORKER_IS_DEBUG_ENABLED, "[TID %d] Waiting for a grid to solve...\n", Pointer_Worker->Thread_ID);
+		pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+		while (Pointer_Worker->Is_Waiting_Requested) pthread_cond_wait(&Pointer_Worker->Wait_Condition, &Pointer_Worker->Mutex_Wait_Condition);
+		Pointer_Worker->Is_Waiting_Requested = 1;
+		pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 		
 		// Should the thread terminate ?
 		if (Pointer_Worker->Is_Exit_Requested)
@@ -199,6 +197,7 @@ int WorkerInitialize(int Maximum_Workers_Count)
 		}
 		
 		// Create wait condition first because thread callback will use it
+		Workers[i].Is_Waiting_Requested = 1; // Thread will wait until a job is given to it or it receives an exit request
 		if (pthread_cond_init(&Workers[i].Wait_Condition, NULL) != 0)
 		{
 			LOG(1, "Error : failed to create worker %d wait condition (%s).\n", i, strerror(errno));
@@ -233,6 +232,7 @@ void WorkerSolve(TWorker *Pointer_Worker)
 	
 	// Wake thread up
 	pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+	Pointer_Worker->Is_Waiting_Requested = 0;
 	pthread_cond_signal(&Pointer_Worker->Wait_Condition);
 	pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 }
@@ -264,6 +264,7 @@ void WorkerExit(TWorker *Pointer_Worker)
 	
 	// Wake thread up
 	pthread_mutex_lock(&Pointer_Worker->Mutex_Wait_Condition);
+	Pointer_Worker->Is_Waiting_Requested = 0;
 	pthread_cond_signal(&Pointer_Worker->Wait_Condition);
 	pthread_mutex_unlock(&Pointer_Worker->Mutex_Wait_Condition);
 }
