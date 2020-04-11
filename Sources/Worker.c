@@ -184,7 +184,7 @@ int WorkerInitialize(int Maximum_Workers_Count)
 	// Create the atomic counter
 	if (sem_init(&Worker_Semaphore_Available_Workers_Count, 0, Maximum_Workers_Count) != 0)
 	{
-		printf("[%s] Error : failed to create the workers semaphore.\n", __FUNCTION__);
+		LOG(1, "Error : failed to create the workers semaphore.\n");
 		return -1;
 	}
 	
@@ -194,14 +194,14 @@ int WorkerInitialize(int Maximum_Workers_Count)
 		// Create wait condition mutex first because thread callback will use it
 		if (pthread_mutex_init(&Workers[i].Mutex_Wait_Condition, NULL) != 0)
 		{
-			printf("[%s] Error : failed to create worker %d wait condition mutex (%s).\n", __FUNCTION__, i, strerror(errno));
+			LOG(1, "Error : failed to create worker %d wait condition mutex (%s).\n", i, strerror(errno));
 			return -1;
 		}
 		
 		// Create wait condition first because thread callback will use it
 		if (pthread_cond_init(&Workers[i].Wait_Condition, NULL) != 0)
 		{
-			printf("[%s] Error : failed to create worker %d wait condition (%s).\n", __FUNCTION__, i, strerror(errno));
+			LOG(1, "Error : failed to create worker %d wait condition (%s).\n", i, strerror(errno));
 			return -1;
 		}
 		
@@ -209,7 +209,7 @@ int WorkerInitialize(int Maximum_Workers_Count)
 		Workers[i].Is_Exit_Requested = 0;
 		if (pthread_create(&Thread_ID, NULL, WorkerThreadFunction, &Workers[i]) != 0) // Thread ID is not needed, so do not keep it
 		{
-			printf("[%s] Error : failed to create worker thread %d. (%s)\n", __FUNCTION__, i, strerror(errno));
+			LOG(1, "Error : failed to create worker thread %d (%s).\n", i, strerror(errno));
 			return -1;
 		}
 	}
