@@ -1,8 +1,16 @@
 #!/bin/bash
 
+# Check parameters
+if [ "$1" = "--slow" ]
+then
+	Is_Slow_Grids_Enabled=1
+elif [ -n "$1" ]
+then
+	Result_File_Name="$1"
+fi
+
 Processors_Count=$(cat /proc/cpuinfo | grep processor | wc -l)
 Program="../Parallel_Sudoku_Solver ${Processors_Count}"
-Result_File_Name="$1"
 
 # Start result file with useful system information
 if [ -n "$Result_File_Name" ]
@@ -58,20 +66,27 @@ function SolveList
 }
 
 # Solve all 6x6 grids
-Files_List=`find 6x6_*.txt`
+Files_List=$(find 6x6_*.txt)
 SolveList
 
 # Solve all 9x9 grids
-Files_List=`find 9x9_*.txt`
+Files_List=$(find 9x9_*.txt)
 SolveList
 
 # Solve all 12x12 grids
-Files_List=`find 12x12_*.txt`
+Files_List=$(find 12x12_*.txt)
 SolveList
 
 # Solve all 16x16 grids
-Files_List=`find 16x16_*.txt`
+Files_List=$(find 16x16_*.txt)
 SolveList
+
+# Solve slow grids if enabled
+if [ "$Is_Slow_Grids_Enabled" = "1" ]
+then
+	Files_List=$(find Slow_*.txt)
+	SolveList
+fi
 
 if [ -n "$Result_File_Name" ]
 then
