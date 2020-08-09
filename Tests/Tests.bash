@@ -30,7 +30,8 @@ then
 	printf "######################################################################\n" >> "$Result_File_Name"
 	printf "# System details                                                     #\n" >> "$Result_File_Name"
 	printf "######################################################################\n" >> "$Result_File_Name"
-	printf "$(lsb_release -a)\n\n" >> "$Result_File_Name"
+	printf "$(lsb_release -a)\n" >> "$Result_File_Name"
+	printf "$(uname -a)\n\n" >> "$Result_File_Name"
 
 	printf "######################################################################\n" >> "$Result_File_Name"
 	printf "# Starting tests                                                     #\n" >> "$Result_File_Name"
