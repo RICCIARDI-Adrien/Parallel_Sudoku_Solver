@@ -9,7 +9,7 @@ then
 	Result_File_Name="$1"
 fi
 
-Processors_Count=$(cat /proc/cpuinfo | grep processor | wc -l)
+Processors_Count=$(nproc)
 Program="../Parallel_Sudoku_Solver ${Processors_Count}"
 
 # Start result file with useful system information
