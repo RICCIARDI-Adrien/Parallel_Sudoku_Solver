@@ -14,7 +14,7 @@
 // Private constants and macros
 //-------------------------------------------------------------------------------------------------
 /** Enable or disable this module debug messages. */
-#define GRID_IS_DEBUG_ENABLED 0
+#define GRID_IS_DEBUG_ENABLED 1
 
 /** Get the square index (in the Bitmask_Squares array) in which the cell is located. The formula is Square_Row * Squares_Horizontal_Count + Square_Column.
  * @param Row Cell row coordinate.
@@ -349,6 +349,27 @@ unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Ro
 	// Find missing numbers simultaneously on the row, the column and the square of the cell
 	Bitmask_Missing_Numbers = Pointer_Grid->Allowed_Numbers_Bitmask_Rows[Cell_Row] & Pointer_Grid->Allowed_Numbers_Bitmask_Columns[Cell_Column] & Pointer_Grid->Allowed_Numbers_Bitmask_Squares[Square_Index];
 	return Bitmask_Missing_Numbers;
+}
+
+void GridShowMissingNumbers(unsigned int Bitmask_Missing_Numbers)
+{
+	unsigned int i;
+	char Temporary_String[4], String[CONFIGURATION_GRID_MAXIMUM_SIZE * 4] = {0}; // Create a complete string and display it once to avoid cutting it by other printings made by other threads, the string size should be enough with 4 characters per number (2 for the digits, one for the comma and one for the separating space), because 10 numbers will only be 1-digit long
+
+	for (i = 0; i < Grid_Size; i++)
+	{
+		if (Bitmask_Missing_Numbers & (1 << i))
+		{
+			// Separate the previous number (if any) with a comma, there is a previous number if the string is not empty
+			if (String[0] != 0) strcat(String, ", ");
+
+			// Append the number to the string
+			sprintf(Temporary_String, "%u", i + Grid_Display_Starting_Number);
+			strcat(String, Temporary_String);
+		}
+	}
+
+	LOG(GRID_IS_DEBUG_ENABLED, "Missing numbers : %s\n", String);
 }
 
 void GridSetCellValue(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column, int Cell_Value)

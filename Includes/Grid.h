@@ -60,6 +60,12 @@ void GridShow(TGrid *Pointer_Grid);
  */
 unsigned int GridGetCellMissingNumbers(TGrid *Pointer_Grid, unsigned int Cell_Row, unsigned int Cell_Column);
 
+/** Display a human-readable list of the missing numbers in the provided mask.
+ * @param Bitmask_Missing_Numbers A mask of the missing numbers, each set bit tells that the number corresponding to the bit index is missing.
+ * @note This is a debug function.
+ */
+void GridShowMissingNumbers(unsigned int Bitmask_Missing_Numbers);
+
 /** Set the value of a cell.
  * @param Pointer_Grid The grid to set cell value.
  * @param Cell_Row Row coordinate of the cell.
